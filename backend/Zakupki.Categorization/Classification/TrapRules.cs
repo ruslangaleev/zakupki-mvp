@@ -79,7 +79,7 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
         }
 
         if (ContainsAny(hay, "реагент", "тест систем", "тест-систем", "диагностикум") &&
-            !ContainsAny(hay, "антигололед", "антигололёд") &&
+            !ContainsAny(hay, "антигололед", "антигололёд", "водоочист", "водоподготов", "водообработ", "бассейн") &&
             mappedL2 is "g05c01" or "g14c01" or "g14c02" or "g23c05" or "g25c01")
         {
             return Hit("g05c04", 0.92, mapped.MappingVersion, mapped.Method);
@@ -93,7 +93,10 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
         }
 
         // Prototype refine: 20.59 chemistry code + medical articles → med supplies.
-        if (ContainsAny(hay, "медицинск издели", "медицинских издели", "изделия медицин", "мед издели") &&
+        // FormKD: «изделий» → «изделии»; cover both word orders.
+        if (ContainsAny(hay,
+                "медицинск издели", "медицинских издели", "медицинскои издели",
+                "изделия медицин", "изделии медицин", "издели медицин", "мед издели") &&
             mappedL2 is "g14c01" or "g14c02" or "g14c05" or "g25c01")
         {
             return Hit("g05c02", 0.92, mapped.MappingVersion, mapped.Method);
@@ -278,9 +281,10 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
             return Hit("g17c01", 0.93);
         }
 
-        // Lab reagents / tests (not medicines, not anti-ice).
+        // Lab reagents / tests (not medicines, not anti-ice, not water treatment).
         if (ContainsAny(hay, "реагент", "тест систем", "тест-систем", "диагностикум", "для анализатора") &&
-            !ContainsAny(hay, "антигололед", "антигололёд", "лекарственн"))
+            !ContainsAny(hay, "антигололед", "антигололёд", "лекарственн",
+                "водоочист", "водоподготов", "водообработ", "бассейн"))
         {
             return Hit("g05c04", 0.92);
         }

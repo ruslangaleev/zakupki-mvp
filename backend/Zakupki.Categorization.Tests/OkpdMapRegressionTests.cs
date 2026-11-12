@@ -44,6 +44,11 @@ public class OkpdMapRegressionTests
     [InlineData("Ремонт оргтехники с привлечением субподрядчика", "33.13.11.000", "g07c09")]
     // #11 gold regression: 20.59.* medical articles.
     [InlineData("Ц-9845_Закупка медицинских изделий", "20.59.52.194", "g05c02")]
+    // #23: genitive «изделий медицинского назначения».
+    [InlineData("Закупка изделий медицинского назначения", "20.59.52.194", "g05c02")]
+    // #11 QA: water-treatment reagents stay chemistry, not lab diagnostics.
+    [InlineData("Поставка химических реагентов для водоочистки", "20.59.59.000", "g14c01")]
+    [InlineData("Поставка реагентов для лаборатории", "20.59.52.195", "g05c04")]
     public void Dump_cases_map_to_expected_l2(string title, string okpd, string expectedL2)
     {
         var result = _classifier.Classify(new OrderClassificationInput
