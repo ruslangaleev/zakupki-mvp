@@ -195,6 +195,22 @@ public sealed class OkpdKtruMapper
         return null;
     }
 
+    /// <summary>Distinct L2 ids produced by OKPD2/KTRU prefixes for the given positions.</summary>
+    public IReadOnlyList<string> DistinctMappedL2Ids(IReadOnlyList<PurchasePosition> positions)
+    {
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var position in positions)
+        {
+            var hit = MapPosition(position);
+            if (hit is not null)
+            {
+                set.Add(hit.Value.L2Id);
+            }
+        }
+
+        return set.OrderBy(x => x, StringComparer.Ordinal).ToList();
+    }
+
     private string? MatchPrefix(string code)
     {
         var digits = DigitsOnly(code);

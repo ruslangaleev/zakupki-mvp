@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
+using Zakupki.Categorization.Mapping;
 using Zakupki.Categorization.Models;
 using Zakupki.Categorization.Taxonomy;
 
@@ -9,8 +11,12 @@ namespace Zakupki.Categorization.Classification;
 /// Hard overrides for regression traps T01–T15 (product TZ).
 /// Runs after OKPD/KTRU map and MNN dict, before keyword rules.
 /// </summary>
-public sealed class TrapRules(ITaxonomyCatalog taxonomy)
+public sealed class TrapRules(ITaxonomyCatalog taxonomy, OkpdKtruMapper mapper)
 {
+    private static readonly Regex FoodTitleWithClarifier = new(
+        @"продукт\w*\s+питани\w*\s*(?:\(([^)]+)\)|[:—–-]\s*([^,;/(]+))",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
     /// <summary>
     /// Overrides coarse OKPD/KTRU hits when the card text is more specific
     /// (repair=33.*, plastics=22.*, security=80.*).
@@ -24,6 +30,11 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
         }
 
         var mappedL2 = mapped.Primary?.L2?.Id;
+
+        if (TryFoodAssortment(input, mapped, hay) is { } foodAssortment)
+        {
+            return foodAssortment;
+        }
 
         // Text traps must override coarse OKPD hits (plastics/cables/cleaning/paper/fencing).
         if (TryTrapT05T07T08(hay, mapped.MappingVersion, mapped.Method) is { } trapHit)
@@ -440,6 +451,119 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
         }
 
         return Normalize(string.Join(' ', parts));
+    }
+
+    /// <summary>
+    /// #41: mixed food basket or generic «продукты питания» title → primary g06c16,
+    /// keep distinct g06 L2s from codes as secondary labels.
+    /// </summary>
+    private ClassificationResult? TryFoodAssortment(
+        OrderClassificationInput input,
+        ClassificationResult mapped,
+        string hay)
+    {
+        if (!string.Equals(mapped.Primary?.L1.Id, "g06", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var foodL2s = mapper.DistinctMappedL2Ids(input.Positions)
+            .Where(id => id.StartsWith("g06", StringComparison.Ordinal) &&
+                         !string.Equals(id, "g06c16", StringComparison.Ordinal))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToList();
+
+        var multiFoodL2 = foodL2s.Count >= 2;
+        var genericTitle = IsGenericFoodAssortmentTitle(input, hay);
+        if (!multiFoodL2 && !genericTitle)
+        {
+            return null;
+        }
+
+        if (string.Equals(mapped.Primary?.L2?.Id, "g06c16", StringComparison.Ordinal) &&
+            mapped.Categories.Count > 1)
+        {
+            return null;
+        }
+
+        if (!taxonomy.TryGetL2("g06c16", out var l1, out var assortment))
+        {
+            throw new InvalidOperationException("taxonomy missing g06c16");
+        }
+
+        var categories = new List<CategoryAssignment>
+        {
+            new()
+            {
+                L1 = new CategoryRef { Id = l1.Id, Name = l1.Name },
+                L2 = new CategoryRef { Id = assortment.Id, Name = assortment.Name },
+                Score = 19,
+                Share = 1,
+                IsPrimary = true
+            }
+        };
+
+        foreach (var l2Id in foodL2s.Take(2))
+        {
+            if (!taxonomy.TryGetL2(l2Id, out var secL1, out var secL2))
+            {
+                continue;
+            }
+
+            categories.Add(new CategoryAssignment
+            {
+                L1 = new CategoryRef { Id = secL1.Id, Name = secL1.Name },
+                L2 = new CategoryRef { Id = secL2.Id, Name = secL2.Name },
+                Score = 10,
+                Share = 0,
+                IsPrimary = false
+            });
+        }
+
+        return new ClassificationResult
+        {
+            TaxonomyVersion = taxonomy.Version,
+            Method = mapped.Method,
+            MappingVersion = mapped.MappingVersion,
+            Confidence = 0.9,
+            ReviewStatus = ReviewStatuses.None,
+            Categories = categories
+        };
+    }
+
+    private static bool IsGenericFoodAssortmentTitle(OrderClassificationInput input, string hay)
+    {
+        if (!ContainsAny(hay, "продуктов питания", "продукты питания", "продукт питания", "продуктами питания"))
+        {
+            return false;
+        }
+
+        return !LooksLikeSingleFoodKindClarifier(input);
+    }
+
+    private static bool LooksLikeSingleFoodKindClarifier(OrderClassificationInput input)
+    {
+        var raw = $"{input.ObjectName} {input.Title}";
+        var match = FoodTitleWithClarifier.Match(raw);
+        if (!match.Success)
+        {
+            return false;
+        }
+
+        var inner = (match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value)
+            .Trim()
+            .ToLowerInvariant();
+        if (inner.Length == 0 ||
+            inner.Contains(',') ||
+            inner.Contains(';', StringComparison.Ordinal) ||
+            Regex.IsMatch(inner, @"\sи\s") ||
+            inner.Contains("спецпитани", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private ClassificationResult Hit(

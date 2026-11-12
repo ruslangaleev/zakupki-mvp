@@ -74,4 +74,83 @@ public class OkpdMapRegressionTests
 
         Assert.Equal(expectedL2, result.Primary?.L2.Id);
     }
+
+    /// <summary>#41: mixed food codes / generic «продукты питания» → primary g06c16.</summary>
+    [Fact]
+    public void Mixed_food_okpd_basket_promotes_to_g06c16_with_secondaries()
+    {
+        var result = _classifier.Classify(new OrderClassificationInput
+        {
+            RegNumber = "0138600003126000088",
+            Title = "Поставка продуктов питания",
+            ObjectName = "Поставка продуктов питания",
+            Positions =
+            [
+                new PurchasePosition { Okpd2Code = "10.83.12.120", Name = "чай", Amount = 100, IsPrimary = true },
+                new PurchasePosition { Okpd2Code = "10.84.12.150", Name = "специи", Amount = 100 },
+                new PurchasePosition { Okpd2Code = "01.11.71.110", Name = "крупа", Amount = 100 }
+            ]
+        });
+
+        Assert.Equal("g06c16", result.Primary?.L2.Id);
+        Assert.Contains(result.Categories, c => !c.IsPrimary && c.L2 is not null);
+    }
+
+    [Theory]
+    [InlineData(
+        "0319200060826000071",
+        "Поставка продуктов питания (чай черный, масло растительное)",
+        "10.41.54.000",
+        "10.83.13.120",
+        "g06c16")]
+    [InlineData(
+        "0358300284326000156",
+        "Осуществление закупки продуктов питания для нужд ГБУ",
+        "10.41.54.000",
+        null,
+        "g06c16")]
+    [InlineData(
+        "0816500000626017018",
+        "Поставка продуктов питания (спецпитание)",
+        "10.51.11.000",
+        "10.51.52.140",
+        "g06c16")]
+    [InlineData(
+        "0343300000926000017",
+        "Поставка продуктов питания (сок)",
+        "10.32.10.000",
+        null,
+        "g06c13")]
+    [InlineData(
+        "0354300078926000050",
+        "Поставка продуктов питания: яблоки",
+        "01.24.10.000",
+        null,
+        "g06c04")]
+    public void Food_title_assortment_or_single_kind(
+        string reg,
+        string title,
+        string okpd1,
+        string? okpd2,
+        string expectedL2)
+    {
+        var positions = new List<PurchasePosition>
+        {
+            new() { Okpd2Code = okpd1, Name = title, Amount = 100, IsPrimary = true }
+        };
+        if (okpd2 is not null)
+        {
+            positions.Add(new PurchasePosition { Okpd2Code = okpd2, Name = title, Amount = 100 });
+        }
+
+        var result = _classifier.Classify(new OrderClassificationInput
+        {
+            RegNumber = reg,
+            Title = title,
+            ObjectName = title,
+            Positions = positions
+        });
+
+        Assert.Equal(expectedL2, result.Primary?.L2.Id);
+    }
 }

@@ -1,7 +1,7 @@
 {
   "gold150": {
     "min_l1_pct": 89.3,
-    "min_l2_pct": 73.3,
-    "note": "Regression floor from main after ML L2 fix (#32), compared as one-decimal percents. Raise as independent gold1000 grows."
+    "min_l2_pct": 76.7,
+    "note": "Regression floor after #41 food assortment → g06c16 (+ juice 10.32→g06c13, colon single-kind). Raise as independent gold1000 grows."
   }
 }
