@@ -51,7 +51,16 @@ public sealed class OpenSearchIndexClient(
 
         var primary = classification.Primary;
         var categoryIds = classification.Categories
-            .SelectMany(c => new[] { c.L1.Id, c.L2.Id })
+            .SelectMany(c =>
+            {
+                var ids = new List<string> { c.L1.Id };
+                if (!string.IsNullOrEmpty(c.L2?.Id))
+                {
+                    ids.Add(c.L2.Id);
+                }
+
+                return ids;
+            })
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
@@ -166,7 +175,16 @@ public sealed class OpenSearchIndexClient(
         var opts = options.Value;
         var primary = classification.Primary;
         var categoryIds = classification.Categories
-            .SelectMany(c => new[] { c.L1.Id, c.L2.Id })
+            .SelectMany(c =>
+            {
+                var ids = new List<string> { c.L1.Id };
+                if (!string.IsNullOrEmpty(c.L2?.Id))
+                {
+                    ids.Add(c.L2.Id);
+                }
+
+                return ids;
+            })
             .Distinct(StringComparer.Ordinal)
             .ToList();
 

@@ -71,7 +71,7 @@ public class OkpdMapV13Tests
 
         Assert.Equal("g06c03", result.Primary?.L2.Id);
         Assert.True(result.Primary!.Share >= 0.7);
-        Assert.Contains(result.Categories, c => !c.IsPrimary && c.L2.Id == "g15c02" && c.Share >= 0.15);
+        Assert.Contains(result.Categories, c => !c.IsPrimary && c.L2?.Id == "g15c02" && c.Share >= 0.15);
         Assert.NotEqual(ReviewStatuses.Queued, result.ReviewStatus);
     }
 

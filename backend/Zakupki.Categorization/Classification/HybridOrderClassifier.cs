@@ -128,12 +128,8 @@ public sealed class HybridOrderClassifier(
             };
         }
 
-        // No in-L1 L2 from rules → queue (do not invent first child).
-        if (!taxonomy.TryGetL2(RuleBasedOrderClassifier.UnclassifiedL2Id, out var qL1, out var qL2))
-        {
-            throw new InvalidOperationException("taxonomy must contain unclassified L2");
-        }
-
+        // Keep ML L1; no in-L1 L2 from rules → queue without inventing a child L2.
+        var generalL2 = FindGeneralL2(l1);
         return new ClassificationResult
         {
             TaxonomyVersion = taxonomy.Version,
@@ -144,14 +140,27 @@ public sealed class HybridOrderClassifier(
             [
                 new CategoryAssignment
                 {
-                    L1 = new CategoryRef { Id = qL1.Id, Name = qL1.Name },
-                    L2 = new CategoryRef { Id = qL2.Id, Name = qL2.Name },
-                    Score = 0,
+                    L1 = new CategoryRef { Id = l1.Id, Name = l1.Name },
+                    L2 = generalL2 is null
+                        ? null
+                        : new CategoryRef { Id = generalL2.Id, Name = generalL2.Name },
+                    Score = confidence,
+                    Share = 0,
                     IsPrimary = true
                 }
             ]
         };
     }
+
+    private static TaxonomyL2? FindGeneralL2(TaxonomyL1 l1) =>
+        l1.Children.FirstOrDefault(c =>
+        {
+            var n = c.Name.ToLowerInvariant();
+            return n.Contains("проч", StringComparison.Ordinal) ||
+                   n.Contains("иное", StringComparison.Ordinal) ||
+                   n.Contains("общее", StringComparison.Ordinal) ||
+                   n.Contains("общ", StringComparison.Ordinal);
+        });
 
     private ClassificationResult BuildQueued(string method, string? mappingVersion)
     {

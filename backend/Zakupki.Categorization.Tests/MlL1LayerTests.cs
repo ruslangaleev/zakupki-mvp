@@ -118,10 +118,47 @@ public sealed class MlL1LayerTests
         public (string L1Id, float Confidence)? TryPredict(string text) => ("g15", 0.10f);
     }
 
+    [Fact]
+    public void High_confidence_ml_keeps_l1_when_rules_disagree_and_queues()
+    {
+        var services = new ServiceCollection();
+        services.AddOptions<ClassificationOptions>();
+        services.Configure<ClassificationOptions>(o => o.AutoThreshold = 0.65);
+        services.AddSingleton<ITaxonomyCatalog, EmbeddedTaxonomyCatalog>();
+        services.AddSingleton<OkpdKtruMapper>();
+        services.AddSingleton<MnnDictionary>();
+        services.AddSingleton<TrapRules>();
+        services.AddSingleton<RuleBasedOrderClassifier>();
+        // ML says g07 (IT), rules for fuel stay on g10 → queue but keep g07
+        services.AddSingleton<IMlL1Predictor>(_ => new StubHighConfidenceItMl());
+        services.AddSingleton<IOrderClassifier, HybridOrderClassifier>();
+        using var sp = services.BuildServiceProvider();
+
+        var withMl = sp.GetRequiredService<IOrderClassifier>().Classify(new OrderClassificationInput
+        {
+            RegNumber = "test-ml-mismatch",
+            Title = "Поставка бензина АИ-92",
+            ObjectName = "Поставка бензина АИ-92",
+            Positions = []
+        });
+
+        Assert.Equal(ClassificationMethods.MlL1, withMl.Method);
+        Assert.Equal(ReviewStatuses.Queued, withMl.ReviewStatus);
+        Assert.Equal("g07", withMl.Primary?.L1.Id);
+        Assert.NotEqual("g25", withMl.Primary?.L1.Id);
+    }
+
     private sealed class StubHighConfidenceFuelMl : IMlL1Predictor
     {
         public bool IsAvailable => true;
 
         public (string L1Id, float Confidence)? TryPredict(string text) => ("g10", 0.91f);
+    }
+
+    private sealed class StubHighConfidenceItMl : IMlL1Predictor
+    {
+        public bool IsAvailable => true;
+
+        public (string L1Id, float Confidence)? TryPredict(string text) => ("g07", 0.91f);
     }
 }

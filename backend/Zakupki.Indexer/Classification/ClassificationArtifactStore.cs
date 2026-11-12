@@ -29,8 +29,8 @@ public sealed class ClassificationArtifactStore
             {
                 l1Id = c.L1.Id,
                 l1Name = c.L1.Name,
-                l2Id = c.L2.Id,
-                l2Name = c.L2.Name,
+                l2Id = c.L2?.Id,
+                l2Name = c.L2?.Name,
                 c.Score,
                 c.Share,
                 c.IsPrimary
