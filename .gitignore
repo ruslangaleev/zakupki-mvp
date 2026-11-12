@@ -33,6 +33,7 @@ Thumbs.db
 /data/eval/*
 !/data/eval/gold1000_part01_sample.csv
 !/data/eval/gold1000_part01.csv
+!/data/eval/gold150_errors.csv
 
 # HuggingFace local cache
 .hf-cache/

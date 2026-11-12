@@ -25,6 +25,7 @@ static async Task<int> RunAsync(string[] args)
     var goldPath = Path.GetFullPath(Arg(args, "--gold", "data/eval/gold150.csv"));
     var ordersPath = Path.GetFullPath(Arg(args, "--orders", "data/orders"));
     var outPath = Path.GetFullPath(Arg(args, "--out", "eval/metrics.json"));
+    var errorsOutArg = Arg(args, "--errors-out", "");
     var thresholdsPath = Arg(args, "--thresholds", "");
     var stripCodes = HasFlag(args, "--strip-codes");
     var enableMl = !HasFlag(args, "--no-ml");
@@ -64,6 +65,7 @@ static async Task<int> RunAsync(string[] args)
     var fixL1Hits = 0;
     var fixL2Hits = 0;
     var errors = new List<object>();
+    var l2ErrorRows = new List<L2ErrorRow>();
     var skipReasons = new Dictionary<string, int>(StringComparer.Ordinal);
 
     foreach (var row in rows)
@@ -184,6 +186,23 @@ static async Task<int> RunAsync(string[] args)
                 title = row.Title
             });
         }
+
+        if (!l2Ok)
+        {
+            var title = FirstNonEmpty(meta.ObjectName, meta.Title, row.Title) ?? "";
+            var okpd = DistinctJoin(positions.Select(p => p.Okpd2Code));
+            var ktru = DistinctJoin(positions.Select(p => p.KtruCode));
+            l2ErrorRows.Add(new L2ErrorRow(
+                row.RegNumber,
+                title,
+                okpd,
+                ktru,
+                row.L1,
+                row.L2,
+                gotL1 ?? "",
+                gotL2 ?? "",
+                MapErrorSource(result.Method, result.ReviewStatus)));
+        }
     }
 
     var metrics = new
@@ -230,6 +249,54 @@ static async Task<int> RunAsync(string[] args)
         $"l1_acc={metrics.xlsx_fix_l1_acc:P1} ({fixL1Hits}/{fixEval}) " +
         $"l2_acc={metrics.xlsx_fix_l2_acc:P1} ({fixL2Hits}/{fixEval})");
     Console.WriteLine($"Wrote {outPath}");
+
+    if (!string.IsNullOrWhiteSpace(errorsOutArg))
+    {
+        var errorsPath = Path.GetFullPath(errorsOutArg);
+        Directory.CreateDirectory(Path.GetDirectoryName(errorsPath)!);
+        var sb = new StringBuilder();
+        sb.AppendLine("regNumber,title,okpd2,ktru,expected_l1,expected_l2,got_l1,got_l2,source");
+        foreach (var e in l2ErrorRows.OrderBy(r => r.RegNumber, StringComparer.Ordinal))
+        {
+            sb.Append(CsvEscape(e.RegNumber)).Append(',')
+                .Append(CsvEscape(e.Title)).Append(',')
+                .Append(CsvEscape(e.Okpd2)).Append(',')
+                .Append(CsvEscape(e.Ktru)).Append(',')
+                .Append(CsvEscape(e.ExpectedL1)).Append(',')
+                .Append(CsvEscape(e.ExpectedL2)).Append(',')
+                .Append(CsvEscape(e.GotL1)).Append(',')
+                .Append(CsvEscape(e.GotL2)).Append(',')
+                .Append(CsvEscape(e.Source))
+                .AppendLine();
+        }
+
+        await File.WriteAllTextAsync(errorsPath, sb.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+
+        var l2Miss = evaluated - l2Hits;
+        var l1Miss = evaluated - l1Hits;
+        var l2Only = l2ErrorRows.Count(r =>
+            string.Equals(r.ExpectedL1, r.GotL1, StringComparison.Ordinal));
+        var noOkpd = l2ErrorRows.Count(r => string.IsNullOrWhiteSpace(r.Okpd2));
+        Console.WriteLine(
+            $"errors-out: wrote {l2ErrorRows.Count} L2-error rows → {errorsPath} " +
+            $"(l2_miss={l2Miss}, l1_miss={l1Miss}, l2_only={l2Only}, no_okpd2={noOkpd})");
+        if (l2ErrorRows.Count != l2Miss)
+        {
+            Console.Error.WriteLine(
+                $"errors-out row count {l2ErrorRows.Count} != l2_miss {l2Miss}");
+            return 1;
+        }
+
+        Console.WriteLine("top expected_l2 → got_l2:");
+        foreach (var g in l2ErrorRows
+                     .GroupBy(r => $"{r.ExpectedL2} → {r.GotL2}")
+                     .OrderByDescending(g => g.Count())
+                     .ThenBy(g => g.Key, StringComparer.Ordinal)
+                     .Take(10))
+        {
+            Console.WriteLine($"  {g.Count(),3}  {g.Key}");
+        }
+    }
 
     if (!string.IsNullOrWhiteSpace(thresholdsPath))
     {
@@ -289,6 +356,48 @@ static async Task<int> RunAsync(string[] args)
 
     static void Bump(Dictionary<string, int> map, string key) =>
         map[key] = map.TryGetValue(key, out var n) ? n + 1 : 1;
+
+    static string MapErrorSource(string? method, string? reviewStatus)
+    {
+        if (string.Equals(reviewStatus, ReviewStatuses.Queued, StringComparison.Ordinal))
+        {
+            return "queue";
+        }
+
+        if (string.Equals(method, ClassificationMethods.MlL1, StringComparison.Ordinal))
+        {
+            return "ml";
+        }
+
+        if (string.Equals(method, ClassificationMethods.RulesV2, StringComparison.Ordinal))
+        {
+            return "rules";
+        }
+
+        return "mapping";
+    }
+
+    static string DistinctJoin(IEnumerable<string?> values) =>
+        string.Join(
+            ";",
+            values
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+                .Select(v => v!.Trim())
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(v => v, StringComparer.Ordinal));
+
+    static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))?.Trim();
+
+    static string CsvEscape(string value)
+    {
+        if (value.Contains('"') || value.Contains(',') || value.Contains('\n') || value.Contains('\r'))
+        {
+            return "\"" + value.Replace("\"", "\"\"") + "\"";
+        }
+
+        return value;
+    }
 
     static List<GoldRow> ReadGoldCsv(string path)
     {
@@ -363,6 +472,17 @@ static async Task<int> RunAsync(string[] args)
 }
 
 internal sealed record GoldRow(string RegNumber, string L1, string L2, string Source, string Title);
+
+internal sealed record L2ErrorRow(
+    string RegNumber,
+    string Title,
+    string Okpd2,
+    string Ktru,
+    string ExpectedL1,
+    string ExpectedL2,
+    string GotL1,
+    string GotL2,
+    string Source);
 
 internal sealed class OrderMeta
 {
