@@ -36,7 +36,8 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
             return Hit("g22c04", 0.9, mapped.MappingVersion, mapped.Method);
         }
 
-        if (ContainsAny(hay, "лифт") && ContainsAny(hay, "обслуживан", "ремонт"))
+        if (ContainsAny(hay, "лифт") &&
+            (ContainsAny(hay, "обслуживан", "ремонт") || ContainsAny(hay, "то лифт", "то лифтов")))
         {
             return Hit("g02c09", 0.92, mapped.MappingVersion, mapped.Method);
         }
@@ -103,8 +104,10 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
             return Hit("g22c03", 0.9, mapped.MappingVersion, mapped.Method);
         }
 
-        if (ContainsAny(hay, "томограф", "центрифуг", "ивл", "аппарат ивл", "медицинск оборудован") &&
-            mappedL2 is "g12c01" or "g12c06" or "g12c08" or "g12c12" or "g11c01" or "g13c07" or "g25c01")
+        // Medtech repair often coded as 33.12/33.13 (machines / electronics) in OKPD.
+        if (ContainsAny(hay, "медицин", "медтех", "томограф", "узи", "рентген", "центрифуг", "ивл", "аппарат ивл") &&
+            mappedL2 is "g12c01" or "g12c06" or "g12c08" or "g12c12" or "g11c01" or "g13c07"
+                or "g07c09" or "g25c01")
         {
             return Hit("g05c03", 0.93, mapped.MappingVersion, mapped.Method);
         }
