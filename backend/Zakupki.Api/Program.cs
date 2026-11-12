@@ -60,7 +60,7 @@ builder.Services.AddHttpClient("embeddings", (sp, client) =>
     client.Timeout = TimeSpan.FromSeconds(60);
 });
 
-builder.Services.AddZakupkiCategorization();
+builder.Services.AddZakupkiCategorization(builder.Configuration);
 builder.Services.AddSingleton<AnalyticsStore>();
 builder.Services.AddSingleton<AnalyticsService>();
 builder.Services.AddSingleton<HybridSearchService>();

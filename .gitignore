@@ -30,6 +30,12 @@ Thumbs.db
 # Collector data
 data/
 
+# HuggingFace local cache
+.hf-cache/
+
+# ML.NET models (trained locally)
+models/
+
 # Local scratch / dumps
 tmp_*.json
 tmp_*.py

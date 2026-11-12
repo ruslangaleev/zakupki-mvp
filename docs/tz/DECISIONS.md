@@ -242,8 +242,9 @@ OCR сканов — вне MVP, отдельный ADR.
 3. Мультиметки по весам позиций (`amount`, primary×1.5): L1-доля ≥0.7 → primary + до 2 secondary (share≥0.15); иначе `queued`.
 4. В `classification.json` и detail API у assignment есть `share`; detail отдаёт полный `categories[]`.
 5. Очередь ручной проверки: `GET/POST /api/review/queue` (POST защищён `X-Review-Key`); ручное решение → `method=manual`, `reviewStatus=resolved`, append в `data/manual-review.jsonl` для дообучения.
-6. Порог авто-модели `Classification:AutoThreshold=0.65` зафиксирован в конфиге (слой ML.NET — следующий инкремент).
+6. Порог авто-модели `Classification:AutoThreshold=0.65` зафиксирован в конфиге.
 7. Обучающий набор ML.NET (`data/train/train.tsv`, вне git): СТЕ из `dantetemplar/zakupki-dataset` → метки L1/L2 через `OkpdKtruMapper`; без пересечения с `gold150`; сборка `python tools/build_train_tsv.py`.
+8. ML.NET L1 (`FeaturizeText` + `SdcaMaximumEntropy`, `models/l1.zip` вне git) через `PredictionEnginePool` только для закупок **без** ОКПД2/КТРУ; ниже порога → `queued`. Нет файла модели → поведение как раньше. Обучение: `dotnet run --project backend/Zakupki.Categorization.TrainMl` (stratified cap per L1).
 
 ### Поправка 2026-11-12 (v1.4, часть 1 — классы 01–33)
 
