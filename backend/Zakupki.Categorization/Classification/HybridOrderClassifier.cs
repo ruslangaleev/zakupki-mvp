@@ -8,7 +8,7 @@ namespace Zakupki.Categorization.Classification;
 
 /// <summary>
 /// Priority: OKPD2/KTRU map → refine → (if still Прочее/queued) text path:
-/// MNN → traps → ML L1 (no codes only) → rules-v2. Weak/uncertain → queued.
+/// MNN → traps → ML L1 (no codes, conf≥threshold) → rules-v2. Queue only if rules say Прочее.
 /// </summary>
 public sealed class HybridOrderClassifier(
     ITaxonomyCatalog taxonomy,
@@ -48,6 +48,7 @@ public sealed class HybridOrderClassifier(
         }
 
         // ML L1 only when purchase has no usable OKPD2/KTRU codes.
+        // Below threshold → fall through to rules-v2 (do not queue from ML alone).
         if (mapped is null && mlL1.IsAvailable)
         {
             var text = BuildText(input);
@@ -63,8 +64,6 @@ public sealed class HybridOrderClassifier(
                         return built;
                     }
                 }
-
-                return BuildQueued(ClassificationMethods.MlL1, mappingVersion: null);
             }
         }
 

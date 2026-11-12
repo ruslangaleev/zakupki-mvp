@@ -7,7 +7,8 @@ using Microsoft.ML.Data;
 
 var inPath = Path.GetFullPath(Arg(args, "--in", "data/train/train.tsv"));
 var outPath = Path.GetFullPath(Arg(args, "--out", "models/l1.zip"));
-var perClass = int.Parse(Arg(args, "--per-class", "50000"));
+// Cap per L1 (PM: ≤50k). Default 4000 — better holdout MicroAccuracy on STE→orders transfer.
+var perClass = int.Parse(Arg(args, "--per-class", "4000"));
 var seed = int.Parse(Arg(args, "--seed", "42"));
 
 if (!File.Exists(inPath))

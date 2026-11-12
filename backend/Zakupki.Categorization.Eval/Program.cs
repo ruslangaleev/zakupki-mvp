@@ -19,6 +19,8 @@ static async Task<int> RunAsync(string[] args)
     var goldPath = Path.GetFullPath(Arg(args, "--gold", "data/eval/gold150.csv"));
     var ordersPath = Path.GetFullPath(Arg(args, "--orders", "data/orders"));
     var outPath = Path.GetFullPath(Arg(args, "--out", "eval/metrics.json"));
+    var stripCodes = HasFlag(args, "--strip-codes");
+    var enableMl = !HasFlag(args, "--no-ml");
 
     if (!File.Exists(goldPath))
     {
@@ -34,10 +36,11 @@ static async Task<int> RunAsync(string[] args)
 
     var rows = ReadGoldCsv(goldPath);
     var services = new ServiceCollection();
-    services.AddZakupkiCategorization();
+    services.AddZakupkiCategorization(enableMl: enableMl);
     var sp = services.BuildServiceProvider();
     var classifier = sp.GetRequiredService<IOrderClassifier>();
     var mapperVersion = sp.GetRequiredService<Zakupki.Categorization.Mapping.OkpdKtruMapper>().Version;
+    Console.WriteLine($"eval flags: stripCodes={stripCodes} enableMl={enableMl}");
 
     var evaluated = 0;
     var skipped = 0;
@@ -80,13 +83,33 @@ static async Task<int> RunAsync(string[] args)
             continue;
         }
 
+        var positions = meta.Positions ?? [];
+        if (stripCodes && positions.Count > 0)
+        {
+            positions = positions
+                .Select(p => new PurchasePosition
+                {
+                    Okpd2Code = null,
+                    Okpd2Name = p.Okpd2Name,
+                    KtruCode = null,
+                    KtruName = p.KtruName,
+                    Name = p.Name,
+                    Unit = p.Unit,
+                    Quantity = p.Quantity,
+                    UnitPrice = p.UnitPrice,
+                    Amount = p.Amount,
+                    IsPrimary = p.IsPrimary
+                })
+                .ToList();
+        }
+
         var result = classifier.Classify(new OrderClassificationInput
         {
             RegNumber = row.RegNumber,
             Title = meta.Title ?? row.Title,
             ObjectName = meta.ObjectName ?? row.Title,
             Customer = meta.Customer,
-            Positions = meta.Positions ?? []
+            Positions = positions
         });
 
         evaluated++;
@@ -138,6 +161,8 @@ static async Task<int> RunAsync(string[] args)
         mappingVersion = mapperVersion,
         goldPath,
         ordersPath,
+        stripCodes,
+        enableMl,
         goldTotal = rows.Count,
         evaluated,
         skipped,
@@ -179,6 +204,9 @@ static async Task<int> RunAsync(string[] args)
 
         return fallback;
     }
+
+    static bool HasFlag(string[] argv, string name) =>
+        argv.Any(a => string.Equals(a, name, StringComparison.OrdinalIgnoreCase));
 
     static void Bump(Dictionary<string, int> map, string key) =>
         map[key] = map.TryGetValue(key, out var n) ? n + 1 : 1;
