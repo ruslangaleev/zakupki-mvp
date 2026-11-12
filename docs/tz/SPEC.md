@@ -79,6 +79,7 @@
 | `AC-CAT-REVIEW-01` | `GET /api/review/queue` и `GET /api/review/queue/{regNumber}` отдают очередь `reviewStatus=queued`. | `done` |
 | `AC-CAT-REVIEW-02` | `POST /api/review/queue/{regNumber}` с заголовком `X-Review-Key` пишет `manual` + `reviewStatus=resolved`, обновляет индекс и `data/manual-review.jsonl`. | `done` |
 | `AC-CAT-ML-01` | ML.NET L1 (`SdcaMaximumEntropy`) + PredictionEnginePool для закупок без кода, порог `Classification:AutoThreshold=0.65`; L2-модель — следующий инкремент. | `done` |
+| `AC-CAT-LLM-01` | Абстракция `ILlmClient` + `FakeLlmClient` + конфиг `Llm:*`; ключ только из env `LLM_API_KEY` (не в репо). Без ключа / до live-провайдера — фейк, сеть не вызывается. Hybrid пока не зовёт LLM. | `done` |
 | `AC-CAT-GOLD-01` | Эталон ≥1000 и CI-метрики L1/L2 / Прочее / авто / T01–T15. | `planned` |
 | `AC-CAT-MNN-01` | Словарь МНН (`inn-dict`) относит названия-МНН без слова «препарат» в `g05c01`. | `done` |
 | `AC-CAT-TRAP-01` | Регрессия ловушек T01–T15 из product TZ зелёная (unit-тесты `Zakupki.Categorization.Tests`). | `done` |

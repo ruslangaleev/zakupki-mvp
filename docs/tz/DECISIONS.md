@@ -246,6 +246,10 @@ OCR сканов — вне MVP, отдельный ADR.
 7. Обучающий набор ML.NET (`data/train/train.tsv`, вне git): СТЕ из `dantetemplar/zakupki-dataset` → метки L1/L2 через `OkpdKtruMapper`; без пересечения с `gold150`; сборка `python tools/build_train_tsv.py`.
 8. ML.NET L1 (`FeaturizeText` + `SdcaMaximumEntropy`, `models/l1.zip` вне git) через `PredictionEnginePool` только для закупок **без** ОКПД2/КТРУ; ниже порога → `queued`. Нет файла модели → поведение как раньше. Обучение: `dotnet run --project backend/Zakupki.Categorization.TrainMl` (stratified cap per L1).
 
+### Поправка 2026-11-12 (LLM-клиент, #50)
+
+Инфраструктура для спорных закупок: `ILlmClient` / `FakeLlmClient` / `LlmOptions` (`Provider`, `Model`, `TimeoutSeconds`). Секрет только `LLM_API_KEY` из окружения. Пока нет live-провайдера — всегда фейк; `HybridOrderClassifier` LLM ещё не вызывает.
+
 ### Поправка 2026-11-12 (мультиметки пищевого ассорти, #44)
 
 Для `TryFoodAssortment` (primary `g06c16`) вторичные метки = **все** различные L2 внутри `g06` по кодам ОКПД2/КТРУ, без `Take(2)` и без общего лимита ≤3 из весового пути. Иначе поиск по подкатегории не находит смешанную закупку.
