@@ -17,13 +17,19 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
     /// </summary>
     public ClassificationResult? TryRefine(OrderClassificationInput input, ClassificationResult mapped)
     {
-        var hay = Normalize($"{input.ObjectName} {input.Title}");
+        var hay = BuildHaystack(input);
         if (string.IsNullOrWhiteSpace(hay))
         {
             return null;
         }
 
         var mappedL2 = mapped.Primary?.L2.Id;
+
+        // T05/T07/T08: text traps must override coarse OKPD hits (plastics/cables/cleaning).
+        if (TryTrapT05T07T08(hay, mapped.MappingVersion, mapped.Method) is { } trapHit)
+        {
+            return trapHit;
+        }
 
         if (ContainsAny(hay, "клеенк", "клеёнк") && ContainsAny(hay, "медицин"))
         {
@@ -182,10 +188,15 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
 
     public ClassificationResult? TryClassify(OrderClassificationInput input)
     {
-        var hay = Normalize($"{input.ObjectName} {input.Title}");
+        var hay = BuildHaystack(input);
         if (string.IsNullOrWhiteSpace(hay))
         {
             return null;
+        }
+
+        if (TryTrapT05T07T08(hay, mappingVersion: null, method: null) is { } earlyTrap)
+        {
+            return earlyTrap;
         }
 
         // T01 — «прокат» inside Прокаин (also covered by MNN; keep as safety net).
@@ -234,32 +245,11 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
             return Hit("g05c02", 0.92);
         }
 
-        // T05 — anti-ice reagents / sand boxes, not lab diagnostics.
-        if (ContainsAny(hay, "антигололед", "антигололёд") ||
-            (ContainsAny(hay, "ящик", "ящиков") && ContainsAny(hay, "песка", "антигололед", "антигололёд")))
-        {
-            return Hit("g13c12", 0.88);
-        }
-
         // T06 — vehicle diagnostics / maintenance.
         if (ContainsAny(hay, "диагностик") &&
             ContainsAny(hay, "автотранспорт", "автомобил", "транспортн средств", "то автомобилей", "ремонт авто"))
         {
             return Hit("g08c05", 0.92);
-        }
-
-        // T07 — video conferencing gear, not event conferences.
-        if (ContainsAny(hay, "видео конференц", "видеоконференц", "вкс") ||
-            (ContainsAny(hay, "конференц") && ContainsAny(hay, "видео", "связь", "монтаж комплекс")))
-        {
-            return Hit("g07c13", 0.9);
-        }
-
-        // T08 — snow/ice roof cleaning → territory maintenance.
-        if (ContainsAny(hay, "очистк") && ContainsAny(hay, "кровл", "крыш") &&
-            ContainsAny(hay, "снег", "налед", "наледи", "сосулек", "сосульк"))
-        {
-            return Hit("g22c02", 0.92);
         }
 
         // T09 — APS / SOUE maintenance → security.
@@ -369,6 +359,56 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
         }
 
         return null;
+    }
+
+    private ClassificationResult? TryTrapT05T07T08(string hay, string? mappingVersion, string? method)
+    {
+        // T05 — anti-ice reagents / sand boxes, not lab diagnostics / plastics.
+        if (ContainsAny(hay, "антигололед", "антигололёд") ||
+            (ContainsAny(hay, "ящик", "ящиков") && ContainsAny(hay, "песка", "антигололед", "антигололёд")))
+        {
+            return Hit("g13c12", 0.88, mappingVersion, method);
+        }
+
+        // T07 — video conferencing gear (not cables/event conferences).
+        if (ContainsAny(hay, "видео конференц", "видеоконференц", "вкс") ||
+            (ContainsAny(hay, "конференц") && ContainsAny(hay, "видео", "связь", "монтаж комплекс")))
+        {
+            return Hit("g07c13", 0.9, mappingVersion, method);
+        }
+
+        // T08 — snow/ice roof cleaning → territory maintenance (not indoor cleaning).
+        if (ContainsAny(hay, "очистк") && ContainsAny(hay, "кровл", "крыш") &&
+            ContainsAny(hay, "снег", "налед", "наледи", "сосулек", "сосульк"))
+        {
+            return Hit("g22c02", 0.92, mappingVersion, method);
+        }
+
+        return null;
+    }
+
+    private static string BuildHaystack(OrderClassificationInput input)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(input.ObjectName))
+        {
+            parts.Add(input.ObjectName!);
+        }
+
+        if (!string.IsNullOrWhiteSpace(input.Title))
+        {
+            parts.Add(input.Title!);
+        }
+
+        foreach (var p in input.Positions)
+        {
+            if (!string.IsNullOrWhiteSpace(p.Name))
+            {
+                parts.Add(p.Name!);
+            }
+        }
+
+        return Normalize(string.Join(' ', parts));
     }
 
     private ClassificationResult Hit(
