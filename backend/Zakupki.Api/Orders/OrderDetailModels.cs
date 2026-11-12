@@ -28,6 +28,8 @@ public sealed class OrderDetailResponse
     public string? ReviewStatus { get; init; }
     public string? MappingVersion { get; init; }
     public IReadOnlyList<OrderCategoryAssignment> Categories { get; init; } = [];
+    public IReadOnlyList<string> Okpd2 { get; init; } = [];
+    public IReadOnlyList<string> Ktru { get; init; } = [];
     public IReadOnlyList<OrderPurchasePosition> Positions { get; init; } = [];
     public bool HasAdvance { get; init; }
     public double? AdvancePercent { get; init; }

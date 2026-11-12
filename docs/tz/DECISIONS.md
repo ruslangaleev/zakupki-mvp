@@ -241,6 +241,8 @@ OCR сканов — вне MVP, отдельный ADR.
 2. Пищевые `01.11/12`→`g06c05`, `01.13/21–25`→`g06c04`, `01.47`→`g06c01`, `03.1`→`g06c02`; прочий `01.*` остаётся в `g23*`.
 3. Мультиметки по весам позиций (`amount`, primary×1.5): L1-доля ≥0.7 → primary + до 2 secondary (share≥0.15); иначе `queued`.
 4. В `classification.json` и detail API у assignment есть `share`; detail отдаёт полный `categories[]`.
+5. Очередь ручной проверки: `GET/POST /api/review/queue` (POST защищён `X-Review-Key`); ручное решение → `method=manual`, `reviewStatus=resolved`, append в `data/manual-review.jsonl` для дообучения.
+6. Порог авто-модели `Classification:AutoThreshold=0.65` зафиксирован в конфиге (слой ML.NET — следующий инкремент).
 
 ## ADR-010a — Заголовок результата = объект закупки, не шаблон процедуры
 

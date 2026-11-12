@@ -75,6 +75,7 @@ public static class ReviewStatuses
 {
     public const string None = "none";
     public const string Queued = "queued";
+    public const string Resolved = "resolved";
     public const string Confirmed = "confirmed";
     public const string Corrected = "corrected";
 }

@@ -1,6 +1,7 @@
 using Zakupki.Api.Analytics;
 using Zakupki.Api.Configuration;
 using Zakupki.Api.Orders;
+using Zakupki.Api.Review;
 using Zakupki.Api.Search;
 using Zakupki.Categorization;
 using Zakupki.Categorization.Taxonomy;
@@ -24,6 +25,11 @@ builder.Services
     .AddOptions<AnalyticsOptions>()
     .Bind(builder.Configuration.GetSection(AnalyticsOptions.SectionName))
     .Validate(o => !string.IsNullOrWhiteSpace(o.DataPath), "Analytics:DataPath is required")
+    .ValidateOnStart();
+
+builder.Services
+    .AddOptions<ReviewOptions>()
+    .Bind(builder.Configuration.GetSection(ReviewOptions.SectionName))
     .ValidateOnStart();
 
 builder.Services.AddOpenApi();
@@ -59,6 +65,7 @@ builder.Services.AddSingleton<AnalyticsStore>();
 builder.Services.AddSingleton<AnalyticsService>();
 builder.Services.AddSingleton<HybridSearchService>();
 builder.Services.AddSingleton<OrderDetailService>();
+builder.Services.AddSingleton<ReviewQueueService>();
 
 var app = builder.Build();
 
@@ -192,5 +199,54 @@ app.MapGet("/api/orders/{regNumber}", async (
     return detail is null ? Results.NotFound(new { error = "Order not found" }) : Results.Ok(detail);
 })
 .WithName("OrderDetail");
+
+app.MapGet("/api/review/queue", async (
+    int? limit,
+    int? from,
+    ReviewQueueService review,
+    CancellationToken cancellationToken) =>
+{
+    var response = await review.ListAsync(limit, from, cancellationToken);
+    return Results.Ok(response);
+})
+.WithName("ReviewQueue");
+
+app.MapGet("/api/review/queue/{regNumber}", async (
+    string regNumber,
+    ReviewQueueService review,
+    CancellationToken cancellationToken) =>
+{
+    var detail = await review.GetAsync(regNumber, cancellationToken);
+    return detail is null ? Results.NotFound(new { error = "Order not found" }) : Results.Ok(detail);
+})
+.WithName("ReviewQueueDetail");
+
+app.MapPost("/api/review/queue/{regNumber}", async (
+    string regNumber,
+    ReviewDecisionRequest? body,
+    HttpRequest httpRequest,
+    ReviewQueueService review,
+    Microsoft.Extensions.Options.IOptions<ReviewOptions> reviewOptions,
+    CancellationToken cancellationToken) =>
+{
+    var expected = reviewOptions.Value.OperatorKey?.Trim();
+    var provided = httpRequest.Headers["X-Review-Key"].FirstOrDefault();
+    if (string.IsNullOrWhiteSpace(expected) ||
+        !string.Equals(provided, expected, StringComparison.Ordinal))
+    {
+        return Results.Unauthorized();
+    }
+
+    if (body is null)
+    {
+        return Results.BadRequest(new { error = "body required" });
+    }
+
+    var (ok, error) = await review.DecideAsync(regNumber, body, cancellationToken);
+    return ok
+        ? Results.Ok(new { status = "resolved", regNumber })
+        : Results.BadRequest(new { error });
+})
+.WithName("ReviewQueueDecide");
 
 app.Run();

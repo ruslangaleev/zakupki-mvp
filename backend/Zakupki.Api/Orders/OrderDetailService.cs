@@ -106,6 +106,18 @@ public sealed partial class OrderDetailService
                     IsPrimary = c.IsPrimary
                 })
                 .ToList(),
+            Okpd2 = (meta.Positions ?? [])
+                .Select(p => p.Okpd2Code)
+                .Where(c => !string.IsNullOrWhiteSpace(c))
+                .Select(c => c!)
+                .Distinct(StringComparer.Ordinal)
+                .ToList(),
+            Ktru = (meta.Positions ?? [])
+                .Select(p => p.KtruCode)
+                .Where(c => !string.IsNullOrWhiteSpace(c))
+                .Select(c => c!)
+                .Distinct(StringComparer.Ordinal)
+                .ToList(),
             Positions = (meta.Positions ?? [])
                 .Select(p => new OrderPurchasePosition
                 {
