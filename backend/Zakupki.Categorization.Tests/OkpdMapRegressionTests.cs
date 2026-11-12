@@ -54,6 +54,9 @@ public class OkpdMapRegressionTests
     [InlineData("Поставка реактивов для ИФА лаборатории", "21.20.23.110", "g05c04")]
     [InlineData("Поставка контрольных материалов для гематологического анализатора", "21.20.23.111", "g05c04")]
     [InlineData("Поставка экстемпоральных лекарственных препаратов для медицинского применения", "21.20.23.190", "g05c01")]
+    // #43: dressing materials 21.20.24 → med devices; drug 21.20.10 stays g05c01.
+    [InlineData("Вата медицинская гигроскопическая", "21.20.24.150", "g05c02")]
+    [InlineData("Лекарственный препарат", "21.20.10.000", "g05c01")]
     // #40: 32.50.50.190 + analyzer/IVD wording → g05c04; plain med device stays g05c02.
     [InlineData("Кювета для лабораторного анализатора ИВД", "32.50.50.190", "g05c04")]
     [InlineData("Поставка кюветы для лабораторного анализатора ИВД", "32.50.50.190", "g05c04")]
@@ -73,6 +76,26 @@ public class OkpdMapRegressionTests
         });
 
         Assert.Equal(expectedL2, result.Primary?.L2.Id);
+    }
+
+    /// <summary>#43: cotton/dressings 21.20.24 must not outweigh med devices into drugs.</summary>
+    [Fact]
+    public void Med_devices_with_dressings_primary_g05c02()
+    {
+        var result = _classifier.Classify(new OrderClassificationInput
+        {
+            RegNumber = "0260100000926000246",
+            Title = "Изделия медицинского назначения",
+            ObjectName = "Изделия медицинского назначения",
+            Positions =
+            [
+                new PurchasePosition { Okpd2Code = "21.20.24.150", Name = "вата", Amount = 300, IsPrimary = true },
+                new PurchasePosition { Okpd2Code = "32.50.50.000", Name = "изделие", Amount = 200 },
+                new PurchasePosition { Okpd2Code = "32.50.50.190", Name = "жгут", Amount = 100 }
+            ]
+        });
+
+        Assert.Equal("g05c02", result.Primary?.L2.Id);
     }
 
     /// <summary>#41: mixed food codes / generic «продукты питания» → primary g06c16.</summary>
