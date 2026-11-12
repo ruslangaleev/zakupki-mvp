@@ -481,10 +481,17 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy, OkpdKtruMapper mapper)
             return null;
         }
 
-        if (string.Equals(mapped.Primary?.L2?.Id, "g06c16", StringComparison.Ordinal) &&
-            mapped.Categories.Count > 1)
+        // #44: keep every distinct mapped g06 L2 as secondary (no Take(2) cap).
+        if (string.Equals(mapped.Primary?.L2?.Id, "g06c16", StringComparison.Ordinal))
         {
-            return null;
+            var existing = mapped.Categories
+                .Where(c => !c.IsPrimary && c.L2 is not null)
+                .Select(c => c.L2!.Id)
+                .ToHashSet(StringComparer.Ordinal);
+            if (foodL2s.Count > 0 && foodL2s.All(existing.Contains))
+            {
+                return null;
+            }
         }
 
         if (!taxonomy.TryGetL2("g06c16", out var l1, out var assortment))
@@ -504,7 +511,7 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy, OkpdKtruMapper mapper)
             }
         };
 
-        foreach (var l2Id in foodL2s.Take(2))
+        foreach (var l2Id in foodL2s)
         {
             if (!taxonomy.TryGetL2(l2Id, out var secL1, out var secL2))
             {

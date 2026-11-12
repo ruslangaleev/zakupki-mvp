@@ -72,7 +72,7 @@
 | `AC-CAT-MAP-02` | Системные свалки v1 устранены: питание≠маркетинг, страхование/банк≠образование, электротехника≠станки, ремонт/ТО≠металлолом; молочка/овощи по 10.5/10.3. | `done` |
 | `AC-CAT-MAP-03` | `84.24` охрана не уходит в Прочее; при `queued`/g25c01 срабатывают текстовые ловушки (охрана, сигнализация, реагенты, кислород, антивирус). | `done` |
 | `AC-CAT-MAP-04` | Пищевые префиксы `01.11/12/13/21–25/47`, `03.1` → `g06*`; непищевые `01.*` остаются в `g23*`. | `done` |
-| `AC-CAT-MAP-05` | Мультиметки: вес позиции = `amount` (×1.5 если primary); L1-доля ≥0.7 → primary + secondary (share≥0.15, ≤3); иначе `queued`. `GET /api/orders/{id}` отдаёт `categories[]` с `share`. | `done` |
+| `AC-CAT-MAP-05` | Мультиметки: вес позиции = `amount` (×1.5 если primary); L1-доля ≥0.7 → primary + secondary (share≥0.15, ≤3); иначе `queued`. Исключение: смешанная пищевая корзина / generic «продукты питания» → primary `g06c16` + **все** различные `g06*` L2 по кодам как secondary (без лимита 2/3). `GET /api/orders/{id}` отдаёт `categories[]` с `share`. | `done` |
 | `AC-CAT-META-01` | Карточка и лента отдают `classificationMethod`, `classificationConfidence`, `taxonomyVersion`, `reviewStatus`. | `done` |
 | `AC-CAT-META-02` | Неуверенная классификация ставит `reviewStatus=queued`, а не «молчаливое Прочее» без статуса. | `done` |
 | `AC-CAT-OKPD-03` | `GET /api/orders/{regNumber}` отдаёт плоские `okpd2[]` и `ktru[]` (уникальные коды из positions). | `done` |

@@ -98,9 +98,9 @@ public class OkpdMapRegressionTests
         Assert.Equal("g05c02", result.Primary?.L2.Id);
     }
 
-    /// <summary>#41: mixed food codes / generic «продукты питания» → primary g06c16.</summary>
+    /// <summary>#41/#44: mixed food basket → primary g06c16 + all distinct g06 L2 secondaries.</summary>
     [Fact]
-    public void Mixed_food_okpd_basket_promotes_to_g06c16_with_secondaries()
+    public void Mixed_food_okpd_basket_promotes_to_g06c16_with_all_secondaries()
     {
         var result = _classifier.Classify(new OrderClassificationInput
         {
@@ -109,14 +109,26 @@ public class OkpdMapRegressionTests
             ObjectName = "Поставка продуктов питания",
             Positions =
             [
-                new PurchasePosition { Okpd2Code = "10.83.12.120", Name = "чай", Amount = 100, IsPrimary = true },
-                new PurchasePosition { Okpd2Code = "10.84.12.150", Name = "специи", Amount = 100 },
-                new PurchasePosition { Okpd2Code = "01.11.71.110", Name = "крупа", Amount = 100 }
+                new PurchasePosition { Okpd2Code = "01.11.75.110", Name = "горох", Amount = 12199.8, IsPrimary = true },
+                new PurchasePosition { Okpd2Code = "01.11.71.110", Name = "фасоль", Amount = 20433.5 },
+                new PurchasePosition { Okpd2Code = "10.82.14.000", Name = "какао", Amount = 20273.4 },
+                new PurchasePosition { Okpd2Code = "10.83.12.120", Name = "кофейный напиток", Amount = 34053.4 },
+                new PurchasePosition { Okpd2Code = "10.84.23.164", Name = "лавровый лист", Amount = 26466.66 },
+                new PurchasePosition { Okpd2Code = "10.86.10.243", Name = "сок детский", Amount = 140701.5 },
+                new PurchasePosition { Okpd2Code = "10.84.23.120", Name = "ваниль", Amount = 10687.84 },
+                new PurchasePosition { Okpd2Code = "10.84.12.150", Name = "приправы", Amount = 28013.35 },
+                new PurchasePosition { Okpd2Code = "10.61", Name = "рис", Amount = 84840 },
+                new PurchasePosition { Okpd2Code = "10.84.12.150", Name = "приправы", Amount = 22410.68 }
             ]
         });
 
         Assert.Equal("g06c16", result.Primary?.L2.Id);
-        Assert.Contains(result.Categories, c => !c.IsPrimary && c.L2 is not null);
+        var secondary = result.Categories
+            .Where(c => !c.IsPrimary && c.L2 is not null)
+            .Select(c => c.L2!.Id)
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToArray();
+        Assert.Equal(new[] { "g06c05", "g06c08", "g06c09", "g06c11" }, secondary);
     }
 
     [Theory]
