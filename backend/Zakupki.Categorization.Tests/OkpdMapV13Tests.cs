@@ -32,7 +32,7 @@ public class OkpdMapV13Tests
     {
         var result = Classify("Поставка", okpd);
         Assert.Equal(expectedL2, result.Primary?.L2.Id);
-        Assert.Equal("v1.3", result.MappingVersion);
+        Assert.Equal("v1.4", result.MappingVersion);
         Assert.Equal(ClassificationMethods.Okpd2Map, result.Method);
     }
 
