@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Zakupki.Categorization\Zakupki.Categorization.csproj" />
+    <ProjectReference Include="..\Zakupki.Categorization.Eval\Zakupki.Categorization.Eval.csproj" />
     <ProjectReference Include="..\Zakupki.Indexer\Zakupki.Indexer.csproj" />
   </ItemGroup>
 

@@ -1,6 +1,8 @@
+using Zakupki.Categorization.Eval;
+
 namespace Zakupki.Categorization.Tests;
 
-/// <summary>#35: committed part01 sample must not intersect gold150 fixture.</summary>
+/// <summary>#35 / #37: gold1000 sample must not intersect gold150; overlap gate uses SamplePart01.</summary>
 public class Gold1000SampleOverlapTests
 {
     [Fact]
@@ -15,45 +17,46 @@ public class Gold1000SampleOverlapTests
         Assert.True(File.Exists(goldPath), goldPath);
         Assert.True(File.Exists(samplePath), samplePath);
 
-        var gold = LoadRegNumbers(goldPath);
-        var sample = LoadRegNumbers(samplePath);
-        var overlap = sample.Count(r => gold.Contains(r));
+        var gold = SamplePart01.LoadGoldRegNumbers(goldPath);
+        var sample = SamplePart01.LoadGoldRegNumbers(samplePath);
 
         Assert.Equal(150, gold.Count);
         Assert.Equal(100, sample.Count);
-        Assert.Equal(0, overlap);
+        Assert.Equal(0, SamplePart01.CountOverlap(sample, gold));
     }
 
     [Fact]
     public void CountOverlap_detects_shared_regs()
     {
         var gold = new HashSet<string>(StringComparer.Ordinal) { "a", "b", "c" };
-        Assert.Equal(0, CountOverlap(["x", "y"], gold));
-        Assert.Equal(2, CountOverlap(["a", "x", "c"], gold));
+        Assert.Equal(0, SamplePart01.CountOverlap(["x", "y"], gold));
+        Assert.Equal(2, SamplePart01.CountOverlap(["a", "x", "c"], gold));
     }
 
-    private static int CountOverlap(IEnumerable<string> regs, ISet<string> gold) =>
-        regs.Count(r => gold.Contains(r));
-
-    private static HashSet<string> LoadRegNumbers(string path)
+    [Fact]
+    public void WritePart01Csv_returns_2_and_does_not_write_file_when_overlap()
     {
-        var set = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var line in File.ReadLines(path).Skip(1))
+        var tmp = Directory.CreateTempSubdirectory("gold1000-overlap-");
+        try
         {
-            if (string.IsNullOrWhiteSpace(line))
-            {
-                continue;
-            }
+            var reg = "overlap-reg-1";
+            var orderDir = Path.Combine(tmp.FullName, "orders", reg);
+            Directory.CreateDirectory(orderDir);
+            File.WriteAllText(
+                Path.Combine(orderDir, "meta.json"),
+                """{"regNumber":"overlap-reg-1","noticeUrl":"https://example.test","title":"t","objectName":"o","positions":[]}""");
 
-            var comma = line.IndexOf(',');
-            var reg = comma < 0 ? line.Trim() : line[..comma].Trim().Trim('"');
-            if (reg.Length > 0)
-            {
-                set.Add(reg);
-            }
+            var outPath = Path.Combine(tmp.FullName, "out.csv");
+            var gold = new HashSet<string>(StringComparer.Ordinal) { reg };
+            var code = SamplePart01.WritePart01Csv([reg], gold, Path.Combine(tmp.FullName, "orders"), outPath);
+
+            Assert.Equal(2, code);
+            Assert.False(File.Exists(outPath));
         }
-
-        return set;
+        finally
+        {
+            tmp.Delete(recursive: true);
+        }
     }
 
     private static string FindRepoRoot()

@@ -8,7 +8,7 @@ namespace Zakupki.Categorization.Eval;
 /// Deterministic sample of 100 orders for independent gold1000 labeling (issue #33 / #17).
 /// Does not write classifier categories.
 /// </summary>
-internal static class SamplePart01
+public static class SamplePart01
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -76,7 +76,21 @@ internal static class SamplePart01
         }
 
         var picked = candidates.Take(count).OrderBy(x => x, StringComparer.Ordinal).ToList();
-        var overlap = CountOverlap(picked, exclude);
+        return WritePart01Csv(picked, exclude, ordersPath, outPath, seed);
+    }
+
+    /// <summary>
+    /// Writes the sample CSV unless <paramref name="picked"/> intersects gold150.
+    /// Returns 2 and leaves the file untouched when overlap &gt; 0.
+    /// </summary>
+    public static int WritePart01Csv(
+        IReadOnlyList<string> picked,
+        ISet<string> gold,
+        string ordersPath,
+        string outPath,
+        int seed = 1)
+    {
+        var overlap = CountOverlap(picked, gold);
         Console.WriteLine($"overlap_with_gold150={overlap}");
         if (overlap > 0)
         {
@@ -112,7 +126,11 @@ internal static class SamplePart01
 
         File.WriteAllText(outPath, sb.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
         Console.WriteLine($"Wrote {picked.Count} rows → {outPath} (seed={seed})");
-        Console.WriteLine($"First/last: {picked[0]} … {picked[^1]}");
+        if (picked.Count > 0)
+        {
+            Console.WriteLine($"First/last: {picked[0]} … {picked[^1]}");
+        }
+
         return 0;
     }
 
