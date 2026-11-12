@@ -1,7 +1,7 @@
 {
   "gold150": {
-    "min_l1_pct": 88.0,
-    "min_l2_pct": 68.7,
+    "min_l1_pct": 99.0,
+    "min_l2_pct": 99.0,
     "note": "Regression floor from main after ML L2 fix (#32), compared as one-decimal percents. Raise as independent gold1000 grows."
   }
 }
