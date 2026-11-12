@@ -132,7 +132,7 @@ public sealed class OrderIndexingService(
             extraction.RegNumber,
             extraction.Chunks.Count,
             extraction.Coverage,
-            classification.Primary?.L2.Id ?? "none",
+            classification.Primary?.L2?.Id ?? "none",
             advance.HasAdvance ? advance.Label ?? "yes" : "no",
             classification.Confidence);
         return true;
@@ -191,7 +191,7 @@ public sealed class OrderIndexingService(
         logger.LogInformation(
             "Reclassified {RegNumber}: category={Category}, method={Method}, review={Review}, confidence={Confidence:F2}, positions={Positions}",
             regNumber,
-            classification.Primary?.L2.Id ?? "none",
+            classification.Primary?.L2?.Id ?? "none",
             classification.Method,
             classification.ReviewStatus,
             classification.Confidence,

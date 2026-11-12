@@ -69,7 +69,7 @@ public sealed class HybridOrderClassifier(
 
         var rulesResult = rules.Classify(input);
         if (rulesResult.Primary is null ||
-            string.Equals(rulesResult.Primary.L2.Id, RuleBasedOrderClassifier.UnclassifiedL2Id, StringComparison.Ordinal) ||
+            string.Equals(rulesResult.Primary.L2?.Id, RuleBasedOrderClassifier.UnclassifiedL2Id, StringComparison.Ordinal) ||
             rulesResult.Confidence <= 0.05)
         {
             return WithQueued(rulesResult, mapped?.MappingVersion);
@@ -89,7 +89,7 @@ public sealed class HybridOrderClassifier(
 
     private static bool IsUnclassifiedOrQueued(ClassificationResult result) =>
         result.ReviewStatus == ReviewStatuses.Queued ||
-        string.Equals(result.Primary?.L2.Id, RuleBasedOrderClassifier.UnclassifiedL2Id, StringComparison.Ordinal);
+        string.Equals(result.Primary?.L2?.Id, RuleBasedOrderClassifier.UnclassifiedL2Id, StringComparison.Ordinal);
 
     /// <summary>
     /// ML predicts L1 only; pick L2 via rules-v2 inside that L1, else queue.
@@ -152,14 +152,17 @@ public sealed class HybridOrderClassifier(
         };
     }
 
+    /// <summary>
+    /// Catch-all L2 only: exact «Прочее»/«Иное» or name ending with «(общие)» / «(общее)».
+    /// Avoid false hits like «общепит».
+    /// </summary>
     private static TaxonomyL2? FindGeneralL2(TaxonomyL1 l1) =>
         l1.Children.FirstOrDefault(c =>
         {
-            var n = c.Name.ToLowerInvariant();
-            return n.Contains("проч", StringComparison.Ordinal) ||
-                   n.Contains("иное", StringComparison.Ordinal) ||
-                   n.Contains("общее", StringComparison.Ordinal) ||
-                   n.Contains("общ", StringComparison.Ordinal);
+            var n = c.Name.Trim().ToLowerInvariant();
+            return n is "прочее" or "иное" ||
+                   n.EndsWith("(общие)", StringComparison.Ordinal) ||
+                   n.EndsWith("(общее)", StringComparison.Ordinal);
         });
 
     private ClassificationResult BuildQueued(string method, string? mappingVersion)

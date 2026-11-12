@@ -122,7 +122,7 @@ static async Task<int> RunAsync(string[] args)
 
         evaluated++;
         var gotL1 = result.Primary?.L1.Id;
-        var gotL2 = result.Primary?.L2.Id;
+        var gotL2 = result.Primary?.L2?.Id;
         if (string.Equals(gotL2, "g25c01", StringComparison.Ordinal) ||
             string.Equals(gotL1, "g25", StringComparison.Ordinal))
         {

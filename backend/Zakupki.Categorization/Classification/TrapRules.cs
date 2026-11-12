@@ -23,7 +23,7 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
             return null;
         }
 
-        var mappedL2 = mapped.Primary?.L2.Id;
+        var mappedL2 = mapped.Primary?.L2?.Id;
 
         // Text traps must override coarse OKPD hits (plastics/cables/cleaning/paper/fencing).
         if (TryTrapT05T07T08(hay, mapped.MappingVersion, mapped.Method) is { } trapHit)

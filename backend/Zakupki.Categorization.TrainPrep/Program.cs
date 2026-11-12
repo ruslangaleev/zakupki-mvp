@@ -137,8 +137,12 @@ static int Run(string[] args)
             continue;
         }
 
-        // Skip queue / прочее bucket for supervised L1 training.
-        if (primary.L1.Id is "g25" || mapped!.ReviewStatus == ReviewStatuses.Queued)
+        // (L2 required for supervised rows)
+
+        // Skip queue / прочее / null-L2 for supervised training (L2 required).
+        if (primary.L1.Id is "g25" ||
+            primary.L2 is null ||
+            mapped!.ReviewStatus == ReviewStatuses.Queued)
         {
             skippedNoMap++;
             continue;

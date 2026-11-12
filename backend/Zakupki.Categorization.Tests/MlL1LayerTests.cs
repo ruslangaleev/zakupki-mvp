@@ -145,7 +145,42 @@ public sealed class MlL1LayerTests
         Assert.Equal(ClassificationMethods.MlL1, withMl.Method);
         Assert.Equal(ReviewStatuses.Queued, withMl.ReviewStatus);
         Assert.Equal("g07", withMl.Primary?.L1.Id);
+        Assert.Null(withMl.Primary?.L2);
         Assert.NotEqual("g25", withMl.Primary?.L1.Id);
+
+        // Indexer / OpenSearch path must tolerate null L2 (no NRE).
+        var l2Id = withMl.Primary?.L2?.Id;
+        var l2Name = withMl.Primary?.L2?.Name;
+        Assert.Null(l2Id);
+        Assert.Null(l2Name);
+    }
+
+    [Fact]
+    public void High_confidence_ml_g12_mismatch_queues_with_null_l2_not_obschepit()
+    {
+        var services = new ServiceCollection();
+        services.AddOptions<ClassificationOptions>();
+        services.Configure<ClassificationOptions>(o => o.AutoThreshold = 0.65);
+        services.AddSingleton<ITaxonomyCatalog, EmbeddedTaxonomyCatalog>();
+        services.AddSingleton<OkpdKtruMapper>();
+        services.AddSingleton<MnnDictionary>();
+        services.AddSingleton<TrapRules>();
+        services.AddSingleton<RuleBasedOrderClassifier>();
+        services.AddSingleton<IMlL1Predictor>(_ => new StubHighConfidenceMachineMl());
+        services.AddSingleton<IOrderClassifier, HybridOrderClassifier>();
+        using var sp = services.BuildServiceProvider();
+
+        var withMl = sp.GetRequiredService<IOrderClassifier>().Classify(new OrderClassificationInput
+        {
+            RegNumber = "test-ml-g12",
+            Title = "Поставка бензина АИ-92",
+            ObjectName = "Поставка бензина АИ-92",
+            Positions = []
+        });
+
+        Assert.Equal("g12", withMl.Primary?.L1.Id);
+        Assert.Equal(ReviewStatuses.Queued, withMl.ReviewStatus);
+        Assert.Null(withMl.Primary?.L2); // must not pick g12c07 «общепит»
     }
 
     private sealed class StubHighConfidenceFuelMl : IMlL1Predictor
@@ -160,5 +195,12 @@ public sealed class MlL1LayerTests
         public bool IsAvailable => true;
 
         public (string L1Id, float Confidence)? TryPredict(string text) => ("g07", 0.91f);
+    }
+
+    private sealed class StubHighConfidenceMachineMl : IMlL1Predictor
+    {
+        public bool IsAvailable => true;
+
+        public (string L1Id, float Confidence)? TryPredict(string text) => ("g12", 0.91f);
     }
 }
