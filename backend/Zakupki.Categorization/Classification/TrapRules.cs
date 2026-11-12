@@ -36,7 +36,8 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
             return Hit("g22c04", 0.9, mapped.MappingVersion, mapped.Method);
         }
 
-        if (ContainsAny(hay, "лифт") && ContainsAny(hay, "обслуживан", "ремонт"))
+        if (ContainsAny(hay, "лифт") &&
+            (ContainsAny(hay, "обслуживан", "ремонт") || ContainsAny(hay, "то лифт", "то лифтов")))
         {
             return Hit("g02c09", 0.92, mapped.MappingVersion, mapped.Method);
         }
@@ -78,7 +79,7 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
         }
 
         if (ContainsAny(hay, "реагент", "тест систем", "тест-систем", "диагностикум") &&
-            !ContainsAny(hay, "антигололед", "антигололёд") &&
+            !ContainsAny(hay, "антигололед", "антигололёд", "водоочист", "водоподготов", "водообработ", "бассейн") &&
             mappedL2 is "g05c01" or "g14c01" or "g14c02" or "g23c05" or "g25c01")
         {
             return Hit("g05c04", 0.92, mapped.MappingVersion, mapped.Method);
@@ -89,6 +90,16 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
             mappedL2 is "g14c01" or "g14c02" or "g14c05" or "g25c01")
         {
             return Hit("g07c02", 0.92, mapped.MappingVersion, mapped.Method);
+        }
+
+        // Prototype refine: 20.59 chemistry code + medical articles → med supplies.
+        // FormKD: «изделий» → «изделии»; cover both word orders.
+        if (ContainsAny(hay,
+                "медицинск издели", "медицинских издели", "медицинскои издели",
+                "изделия медицин", "изделии медицин", "издели медицин", "мед издели") &&
+            mappedL2 is "g14c01" or "g14c02" or "g14c05" or "g25c01")
+        {
+            return Hit("g05c02", 0.92, mapped.MappingVersion, mapped.Method);
         }
 
         if (ContainsAny(hay, "перчатк") && ContainsAny(hay, "медицин") &&
@@ -103,8 +114,16 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
             return Hit("g22c03", 0.9, mapped.MappingVersion, mapped.Method);
         }
 
-        if (ContainsAny(hay, "томограф", "центрифуг", "ивл", "аппарат ивл", "медицинск оборудован") &&
-            mappedL2 is "g12c01" or "g12c06" or "g12c08" or "g12c12" or "g11c01" or "g13c07" or "g25c01")
+        // Medtech repair often coded as 33.12/33.13 (machines / electronics) in OKPD.
+        // Avoid bare «медицин*» (учреждение) and substring «ивл» inside «привлечением».
+        if ((ContainsAny(hay,
+                "медицинск оборудован", "медицинского оборудован", "медицинское оборудован",
+                "медицинскои техник", "медицинск техник", "медицинских издели",
+                "медтехник", "томограф", "аппарат узи", "аппарата узи", "узи аппарат",
+                "рентген", "центрифуг", "аппарат ивл") ||
+             ContainsWhole(hay, "узи", "ивл")) &&
+            mappedL2 is "g12c01" or "g12c06" or "g12c08" or "g12c12" or "g11c01" or "g13c07"
+                or "g07c09" or "g25c01")
         {
             return Hit("g05c03", 0.93, mapped.MappingVersion, mapped.Method);
         }
@@ -262,9 +281,10 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
             return Hit("g17c01", 0.93);
         }
 
-        // Lab reagents / tests (not medicines, not anti-ice).
+        // Lab reagents / tests (not medicines, not anti-ice, not water treatment).
         if (ContainsAny(hay, "реагент", "тест систем", "тест-систем", "диагностикум", "для анализатора") &&
-            !ContainsAny(hay, "антигололед", "антигололёд", "лекарственн"))
+            !ContainsAny(hay, "антигололед", "антигололёд", "лекарственн",
+                "водоочист", "водоподготов", "водообработ", "бассейн"))
         {
             return Hit("g05c04", 0.92);
         }
@@ -384,6 +404,21 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
 
     private static bool ContainsAny(string hay, params string[] needles) =>
         needles.Any(n => hay.Contains(Normalize(n), StringComparison.Ordinal));
+
+    private static bool ContainsWhole(string hay, params string[] tokens)
+    {
+        var padded = $" {hay} ";
+        foreach (var token in tokens)
+        {
+            var needle = $" {Normalize(token)} ";
+            if (padded.Contains(needle, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private static string Normalize(string text)
     {
