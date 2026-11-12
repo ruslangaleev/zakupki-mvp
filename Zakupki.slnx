@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/backend/">
+    <Project Path="backend/Zakupki.Api/Zakupki.Api.csproj" />
+    <Project Path="backend/Zakupki.Categorization/Zakupki.Categorization.csproj" />
+    <Project Path="backend/Zakupki.Categorization.Tests/Zakupki.Categorization.Tests.csproj" />
+    <Project Path="backend/Zakupki.Collector/Zakupki.Collector.csproj" />
+    <Project Path="backend/Zakupki.Indexer/Zakupki.Indexer.csproj" />
+  </Folder>
+</Solution>
