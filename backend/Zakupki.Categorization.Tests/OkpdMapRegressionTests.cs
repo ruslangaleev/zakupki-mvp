@@ -34,6 +34,9 @@ public class OkpdMapRegressionTests
     [InlineData("одеяло", "13.92.11.000", "g16c03")]
     [InlineData("подушка", "13.92.24.140", "g16c03")]
     [InlineData("ТО бассейна", "33.12.19.000", "g22c04")]
+    // #20: bare «медицин*» in customer context must NOT force medtech.
+    [InlineData("Ремонт компьютерной техники для нужд медицинской организации", "33.13.11.000", "g07c09")]
+    [InlineData("Ремонт технологического оборудования пищеблока медицинского учреждения", "33.12.15.000", "g12c12")]
     public void Dump_cases_map_to_expected_l2(string title, string okpd, string expectedL2)
     {
         var result = _classifier.Classify(new OrderClassificationInput

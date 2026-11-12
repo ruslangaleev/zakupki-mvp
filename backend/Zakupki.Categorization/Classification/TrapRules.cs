@@ -105,7 +105,11 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
         }
 
         // Medtech repair often coded as 33.12/33.13 (machines / electronics) in OKPD.
-        if (ContainsAny(hay, "медицин", "медтех", "томограф", "узи", "рентген", "центрифуг", "ивл", "аппарат ивл") &&
+        // Do NOT trigger on bare «медицин*» (заказчик/учреждение in the title).
+        if (ContainsAny(hay,
+                "медицинск оборудован", "медицинского оборудован", "медицинское оборудован",
+                "медтехник", "томограф", "аппарат узи", "узи аппарат",
+                "рентген", "центрифуг", "ивл", "аппарат ивл") &&
             mappedL2 is "g12c01" or "g12c06" or "g12c08" or "g12c12" or "g11c01" or "g13c07"
                 or "g07c09" or "g25c01")
         {
