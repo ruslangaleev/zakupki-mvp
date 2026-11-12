@@ -1,0 +1,57 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build
+        run: dotnet build backend/Zakupki.Categorization.Tests/Zakupki.Categorization.Tests.csproj -c Release
+
+      - name: Test
+        run: dotnet test backend/Zakupki.Categorization.Tests/Zakupki.Categorization.Tests.csproj -c Release --no-build --nologo
+
+      - name: Eval gold150 (no ML) + regression gate
+        id: eval
+        run: |
+          set -euo pipefail
+          mkdir -p eval
+          dotnet run -c Release --project backend/Zakupki.Categorization.Eval -- \
+            --no-ml \
+            --gold backend/Zakupki.Categorization.Eval/testdata/gold150/gold150.csv \
+            --orders backend/Zakupki.Categorization.Eval/testdata/gold150/orders \
+            --out eval/metrics.json \
+            --thresholds eval/thresholds.json
+          echo "metrics<<EOF" >> "$GITHUB_STEP_SUMMARY"
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          m = json.load(open("eval/metrics.json", encoding="utf-8"))
+          t = json.load(open("eval/thresholds.json", encoding="utf-8"))["gold150"]
+          print(f"| metric | value | floor |")
+          print(f"| --- | --- | --- |")
+          print(f"| l1_acc | {m['l1_acc']*100:.1f}% | {t['min_l1_pct']:.1f}% |")
+          print(f"| l2_acc | {m['l2_acc']*100:.1f}% | {t['min_l2_pct']:.1f}% |")
+          print(f"| queued_share | {m['queued_share']*100:.1f}% | — |")
+          print(f"| evaluated | {m['evaluated']} | — |")
+          print(f"| mapping | {m.get('mappingVersion','')} | — |")
+          PY
+          echo "EOF" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gold150-metrics
+          path: eval/metrics.json
+          if-no-files-found: ignore

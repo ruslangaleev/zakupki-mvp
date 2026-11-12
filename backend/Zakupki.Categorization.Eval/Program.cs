@@ -25,6 +25,7 @@ static async Task<int> RunAsync(string[] args)
     var goldPath = Path.GetFullPath(Arg(args, "--gold", "data/eval/gold150.csv"));
     var ordersPath = Path.GetFullPath(Arg(args, "--orders", "data/orders"));
     var outPath = Path.GetFullPath(Arg(args, "--out", "eval/metrics.json"));
+    var thresholdsPath = Arg(args, "--thresholds", "");
     var stripCodes = HasFlag(args, "--strip-codes");
     var enableMl = !HasFlag(args, "--no-ml");
 
@@ -229,6 +230,45 @@ static async Task<int> RunAsync(string[] args)
         $"l1_acc={metrics.xlsx_fix_l1_acc:P1} ({fixL1Hits}/{fixEval}) " +
         $"l2_acc={metrics.xlsx_fix_l2_acc:P1} ({fixL2Hits}/{fixEval})");
     Console.WriteLine($"Wrote {outPath}");
+
+    if (!string.IsNullOrWhiteSpace(thresholdsPath))
+    {
+        var thrFull = Path.GetFullPath(thresholdsPath);
+        if (!File.Exists(thrFull))
+        {
+            Console.Error.WriteLine($"Thresholds file not found: {thrFull}");
+            return 1;
+        }
+
+        using var thrDoc = JsonDocument.Parse(await File.ReadAllTextAsync(thrFull));
+        if (!thrDoc.RootElement.TryGetProperty("gold150", out var goldThr))
+        {
+            Console.Error.WriteLine("thresholds.json missing gold150 section");
+            return 1;
+        }
+
+        // Compare one-decimal percents so 103/150 (68.666…%) matches the published 68.7% floor.
+        var minL1Pct = goldThr.TryGetProperty("min_l1_pct", out var l1El)
+            ? l1El.GetDouble()
+            : goldThr.GetProperty("min_l1_acc").GetDouble() * 100;
+        var minL2Pct = goldThr.TryGetProperty("min_l2_pct", out var l2El)
+            ? l2El.GetDouble()
+            : goldThr.GetProperty("min_l2_acc").GetDouble() * 100;
+        var l1Pct = evaluated == 0 ? 0 : Math.Round(100.0 * l1Hits / evaluated, 1);
+        var l2Pct = evaluated == 0 ? 0 : Math.Round(100.0 * l2Hits / evaluated, 1);
+        var ok = l1Pct + 1e-9 >= minL1Pct && l2Pct + 1e-9 >= minL2Pct;
+        Console.WriteLine(
+            $"thresholds: min_l1={minL1Pct:0.0}% min_l2={minL2Pct:0.0}% " +
+            $"(got {l1Pct:0.0}% / {l2Pct:0.0}%) → {(ok ? "PASS" : "FAIL")}");
+        if (!ok)
+        {
+            Console.Error.WriteLine(
+                $"Regression: l1={l1Pct:0.0}% (min {minL1Pct:0.0}%), " +
+                $"l2={l2Pct:0.0}% (min {minL2Pct:0.0}%)");
+            return 2;
+        }
+    }
+
     return 0;
 
     static string Arg(string[] argv, string name, string fallback)
