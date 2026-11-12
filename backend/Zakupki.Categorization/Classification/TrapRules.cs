@@ -96,6 +96,15 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
             return Hit("g05c04", 0.92, mapped.MappingVersion, mapped.Method);
         }
 
+        // #40: generic med-device OKPD 32.50.50.190 + lab-analyzer wording → diagnostics.
+        if (HasOkpdPrefix(input, "32.50.50.190") &&
+            mappedL2 is "g05c02" &&
+            (ContainsAny(hay, "анализатор", "ивд", "кювет", "реагент", "реактив", "калибратор") ||
+             (ContainsAny(hay, "контрольн") && ContainsAny(hay, "материал"))))
+        {
+            return Hit("g05c04", 0.93, mapped.MappingVersion, mapped.Method);
+        }
+
         if (ContainsAny(hay, "картридж", "тонер") &&
             !ContainsAny(hay, "инсулин", "шприц") &&
             mappedL2 is "g14c01" or "g14c02" or "g14c05" or "g25c01")
@@ -462,6 +471,31 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
                 }
             ]
         };
+    }
+
+    private static bool HasOkpdPrefix(OrderClassificationInput input, string prefix)
+    {
+        var want = new string(prefix.Where(char.IsDigit).ToArray());
+        if (want.Length == 0)
+        {
+            return false;
+        }
+
+        foreach (var p in input.Positions)
+        {
+            if (string.IsNullOrWhiteSpace(p.Okpd2Code))
+            {
+                continue;
+            }
+
+            var got = new string(p.Okpd2Code.Where(char.IsDigit).ToArray());
+            if (got.StartsWith(want, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool ContainsAny(string hay, params string[] needles) =>

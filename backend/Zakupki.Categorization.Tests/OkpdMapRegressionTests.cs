@@ -50,6 +50,14 @@ public class OkpdMapRegressionTests
     // #11 QA: water-treatment reagents stay chemistry, not lab diagnostics.
     [InlineData("Поставка химических реагентов для водоочистки", "20.59.59.000", "g14c01")]
     [InlineData("Поставка реагентов для лаборатории", "20.59.52.195", "g05c04")]
+    // #40: diagnostic reagents 21.20.23.* → g05c04 (not drugs g05c01).
+    [InlineData("Поставка реактивов для ИФА лаборатории", "21.20.23.110", "g05c04")]
+    [InlineData("Поставка контрольных материалов для гематологического анализатора", "21.20.23.111", "g05c04")]
+    // #40: 32.50.50.190 + analyzer/IVD wording → g05c04; plain med device stays g05c02.
+    [InlineData("Кювета для лабораторного анализатора ИВД", "32.50.50.190", "g05c04")]
+    [InlineData("Поставка кюветы для лабораторного анализатора ИВД", "32.50.50.190", "g05c04")]
+    [InlineData("Приобретение расходного материала для биохимического анализатора", "32.50.50.190", "g05c04")]
+    [InlineData("Жгут на верхнюю/нижнюю конечность, многоразового использования", "32.50.50.190", "g05c02")]
     public void Dump_cases_map_to_expected_l2(string title, string okpd, string expectedL2)
     {
         var result = _classifier.Classify(new OrderClassificationInput
