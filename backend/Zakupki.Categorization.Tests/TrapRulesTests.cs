@@ -45,6 +45,33 @@ public class TrapRulesTests
         Assert.NotEqual(ReviewStatuses.Queued, result.ReviewStatus);
     }
 
+    /// <summary>#39: medicine titles without OKPD must not fall to g17 (false APS/охрана).</summary>
+    [Theory]
+    [InlineData(
+        "0139200000126014172",
+        "Поставка лекарственных препаратов (приобретение товаров в пользу граждан в целях их социального обеспечения)",
+        "КАПСУЛЫ С ПОРОШКОМ ДЛЯ ИНГАЛЯЦИЙ, 0.05 мг+0.11 мг, шт (капсула)")]
+    [InlineData(
+        "0142200001326021829",
+        "Поставка лекарственных средств для Государственного бюджетного учреждения здравоохранения «Самарская областная клиническая больница им. В.Д. Середавина»",
+        "РАСТВОР ДЛЯ ВНУТРИМЫШЕЧНОГО ВВЕДЕНИЯ, 100 мг/мл, см[3*];^мл (мл)")]
+    public void Medicine_titles_without_okpd_map_to_g05c01(string reg, string objectName, string positionName)
+    {
+        var result = _classifier.Classify(new OrderClassificationInput
+        {
+            RegNumber = reg,
+            Title = objectName,
+            ObjectName = objectName,
+            Positions =
+            [
+                new PurchasePosition { Name = positionName, IsPrimary = true }
+            ]
+        });
+
+        Assert.Equal("g05", result.Primary?.L1.Id);
+        Assert.Equal("g05c01", result.Primary?.L2.Id);
+    }
+
     /// <summary>T05/T07/T08 must refine coarse OKPD map hits when real positions carry codes.</summary>
     [Theory]
     [InlineData(

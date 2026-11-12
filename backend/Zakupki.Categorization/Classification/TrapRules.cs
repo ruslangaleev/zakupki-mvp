@@ -221,15 +221,16 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
             return Hit("g05c01", 0.93);
         }
 
-        // T10 / medicine phrasing — beat chemistry keywords.
-        if (ContainsAny(hay,
-                "лекарственн средств",
-                "лекарственн препарат",
+        // T10 / medicine phrasing — beat chemistry keywords, false «апс» in «капсулы»,
+        // and «охран» inside «здравоохранения». Match all Russian inflections of лекарственн*.
+        if ((ContainsAny(hay, "лекарственн") &&
+             ContainsAny(hay, "препарат", "средств", "средство")) ||
+            ContainsAny(hay,
                 "антибактериальн препарат",
                 "противоопухолев препарат",
                 "психотропн"))
         {
-            return Hit("g05c01", 0.92);
+            return Hit("g05c01", 0.94);
         }
 
         // T15-style single-token drugs are handled by MnnDictionary.
@@ -263,17 +264,23 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
         }
 
         // T09 — APS / SOUE maintenance → security.
-        if (ContainsAny(hay, " апс ", "соуэ", "пожарн сигнализац", "охранно пожарн") ||
-            (ContainsAny(hay, "техническ обслуживан") && ContainsAny(hay, " апс", "соуэ", "сигнализац")) ||
-            (ContainsAny(hay, "системы апс") || ContainsAny(hay, "апс и со")))
+        // Use whole-token «апс» — substring hits «капсулы» / «ингаляц*» otherwise.
+        if (ContainsWhole(hay, "апс", "соуэ") ||
+            ContainsAny(hay, "пожарн сигнализац", "охранно пожарн", "системы апс", "апс и со") ||
+            (ContainsAny(hay, "техническ обслуживан") &&
+             (ContainsWhole(hay, "апс", "соуэ") || ContainsAny(hay, "сигнализац"))))
         {
             return Hit("g17c02", 0.92);
         }
 
         // Guard / monitoring services (often OKPD 84.24 → was silent Прочее).
-        if (ContainsAny(hay, "охран") && !ContainsAny(hay, "охрана труда", "охраны труда", "окружающ"))
+        // «охран» is also a substring of «здравоохранения» — exclude that false friend.
+        if (ContainsAny(hay, "охран") &&
+            !ContainsAny(hay, "охрана труда", "охраны труда", "окружающ", "здравоохран") &&
+            !ContainsAny(hay, "лекарственн"))
         {
-            if (ContainsAny(hay, "сигнализац", "апс", "соуэ", "скуд", "тревожн", "пульт"))
+            if (ContainsAny(hay, "сигнализац", "скуд", "тревожн", "пульт") ||
+                ContainsWhole(hay, "апс", "соуэ"))
             {
                 return Hit("g17c02", 0.93);
             }
