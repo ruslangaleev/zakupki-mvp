@@ -27,8 +27,12 @@ Thumbs.db
 # Docker
 *.pid
 
-# Collector data
-data/
+# Collector data (keep gold1000 labeling CSVs trackable)
+/data/*
+!/data/eval/
+/data/eval/*
+!/data/eval/gold1000_part01_sample.csv
+!/data/eval/gold1000_part01.csv
 
 # HuggingFace local cache
 .hf-cache/

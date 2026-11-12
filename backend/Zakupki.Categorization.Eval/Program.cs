@@ -4,12 +4,18 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Zakupki.Categorization;
 using Zakupki.Categorization.Classification;
+using Zakupki.Categorization.Eval;
 using Zakupki.Categorization.Models;
 
 return await RunAsync(args);
 
 static async Task<int> RunAsync(string[] args)
 {
+    if (args.Any(a => string.Equals(a, "--sample-part01", StringComparison.OrdinalIgnoreCase)))
+    {
+        return SamplePart01.Run(args);
+    }
+
     var jsonOptions = new JsonSerializerOptions
     {
         PropertyNameCaseInsensitive = true,
