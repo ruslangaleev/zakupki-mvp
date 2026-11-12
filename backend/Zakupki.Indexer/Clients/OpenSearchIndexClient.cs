@@ -187,7 +187,8 @@ public sealed class OpenSearchIndexClient(
             }
         };
 
-        await PatchOrderDocAsync(regNumber, payload, "classification", cancellationToken);
+        // refresh=false: ClassifyOnly touches thousands of docs; per-doc refresh hangs OpenSearch.
+        await PatchOrderDocAsync(regNumber, payload, "classification", cancellationToken, refresh: false);
     }
 
     public async Task UpdateOrderAdvanceAsync(

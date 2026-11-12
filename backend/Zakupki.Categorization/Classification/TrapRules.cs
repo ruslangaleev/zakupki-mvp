@@ -130,6 +130,34 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
             return Hit("g03c03", 0.9, mapped.MappingVersion, mapped.Method);
         }
 
+        // Food coded under coarse agriculture 01.* → products.
+        if ((mappedL2 is "g23c01" or "g23c02" or "g23c03") &&
+            ContainsAny(hay,
+                "яблок", "груш", "слив", "вишн", "черешн", "абрикос", "персик",
+                "овощ", "картофел", "капуст", "морков", "свекл", "лук ", "чеснок",
+                "зерн", "пшениц", "мук", "яйц", "мяс", "птиц", "рыб", "молочн", "молоко"))
+        {
+            if (ContainsAny(hay, "рыб"))
+            {
+                return Hit("g06c02", 0.9, mapped.MappingVersion, mapped.Method);
+            }
+
+            if (ContainsAny(hay, "мяс", "птиц", "яйц"))
+            {
+                return Hit("g06c01", 0.9, mapped.MappingVersion, mapped.Method);
+            }
+
+            if (ContainsAny(hay, "овощ", "картофел", "капуст", "морков", "свекл", "яблок", "груш", "слив", "вишн", "черешн", "абрикос", "персик"))
+            {
+                return Hit("g06c04", 0.9, mapped.MappingVersion, mapped.Method);
+            }
+
+            if (ContainsAny(hay, "зерн", "пшениц", "мук"))
+            {
+                return Hit("g06c05", 0.88, mapped.MappingVersion, mapped.Method);
+            }
+        }
+
         return null;
     }
 

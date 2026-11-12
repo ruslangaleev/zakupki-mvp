@@ -31,6 +31,8 @@ public sealed class CategoryAssignment
     public required CategoryRef L1 { get; init; }
     public required CategoryRef L2 { get; init; }
     public double Score { get; init; }
+    /// <summary>Share of basket weight in [0..1] when known (OKPD multimarkers).</summary>
+    public double Share { get; init; }
     public bool IsPrimary { get; init; }
 }
 

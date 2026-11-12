@@ -18,8 +18,12 @@ public sealed class OkpdKtruMapEntry
 
 public sealed class OkpdKtruMapper
 {
+    private const double MajorityShare = 0.7;
+    private const double SecondaryShareMin = 0.15;
+    private const int MaxAssignments = 3;
+
     private readonly ITaxonomyCatalog _taxonomy;
-    private readonly List<(string Prefix, string L2Id)> _prefixes;
+    private readonly List<(string Digits, string L2Id)> _prefixes;
     public string Version { get; }
 
     public OkpdKtruMapper(ITaxonomyCatalog taxonomy)
@@ -36,7 +40,8 @@ public sealed class OkpdKtruMapper
         Version = doc.Version;
         _prefixes = doc.Prefixes
             .Where(p => !string.IsNullOrWhiteSpace(p.Prefix) && !string.IsNullOrWhiteSpace(p.L2Id))
-            .Select(p => (p.Prefix.Trim(), p.L2Id.Trim()))
+            .Select(p => (DigitsOnly(p.Prefix.Trim()), p.L2Id.Trim()))
+            .Where(p => p.Item1.Length > 0)
             .OrderByDescending(p => p.Item1.Length)
             .ToList();
     }
@@ -48,22 +53,17 @@ public sealed class OkpdKtruMapper
             return null;
         }
 
-        var ranked = positions
-            .Select((p, index) => (Position: p, Index: index, Weight: PositionWeight(p, index)))
-            .OrderByDescending(x => x.Weight)
-            .ThenBy(x => x.Index)
-            .ToList();
-
         var mapped = new List<(PurchasePosition Position, string L2Id, string Method, double Weight)>();
-        foreach (var item in ranked)
+        for (var i = 0; i < positions.Count; i++)
         {
-            var hit = MapPosition(item.Position);
+            var position = positions[i];
+            var hit = MapPosition(position);
             if (hit is null)
             {
                 continue;
             }
 
-            mapped.Add((item.Position, hit.Value.L2Id, hit.Value.Method, item.Weight));
+            mapped.Add((position, hit.Value.L2Id, hit.Value.Method, PositionWeight(position, i)));
         }
 
         if (mapped.Count == 0)
@@ -71,24 +71,92 @@ public sealed class OkpdKtruMapper
             return null;
         }
 
-        var top = mapped[0];
-        var conflicting = mapped
-            .Where(m => !string.Equals(ResolveL1(m.L2Id), ResolveL1(top.L2Id), StringComparison.Ordinal))
+        var totalWeight = mapped.Sum(m => m.Weight);
+        if (totalWeight <= 0)
+        {
+            return null;
+        }
+
+        // Aggregate by L1 (keep best L2 per L1 by weight).
+        var byL1 = mapped
+            .GroupBy(m => ResolveL1(m.L2Id) ?? string.Empty)
+            .Where(g => !string.IsNullOrEmpty(g.Key))
+            .Select(g =>
+            {
+                var best = g.OrderByDescending(x => x.Weight).First();
+                return (
+                    L1Id: g.Key,
+                    L2Id: best.L2Id,
+                    Method: best.Method,
+                    Weight: g.Sum(x => x.Weight));
+            })
+            .OrderByDescending(x => x.Weight)
             .ToList();
-        if (conflicting.Count > 0 && conflicting.Sum(c => c.Weight) >= top.Weight * 0.8)
+
+        if (byL1.Count == 0)
         {
-            // Ambiguous multi-position basket → queue, not silent Прочее.
+            return null;
+        }
+
+        var top = byL1[0];
+        var share = top.Weight / totalWeight;
+        if (share < MajorityShare && byL1.Count > 1)
+        {
+            // Ambiguous basket — queue, do not silently pick one L1.
             return BuildQueued();
         }
 
-        if (!_taxonomy.TryGetL2(top.L2Id, out var l1, out var l2))
+        if (!_taxonomy.TryGetL2(top.L2Id, out var topL1, out var topL2) ||
+            string.Equals(topL2.Id, "g25c01", StringComparison.Ordinal))
         {
             return BuildQueued();
         }
 
-        if (string.Equals(l2.Id, "g25c01", StringComparison.Ordinal))
+        var assignments = new List<CategoryAssignment>
         {
-            return BuildQueued();
+            new()
+            {
+                L1 = new CategoryRef { Id = topL1.Id, Name = topL1.Name },
+                L2 = new CategoryRef { Id = topL2.Id, Name = topL2.Name },
+                Score = top.Weight,
+                Share = share,
+                IsPrimary = true
+            }
+        };
+
+        foreach (var secondary in byL1.Skip(1))
+        {
+            if (assignments.Count >= MaxAssignments)
+            {
+                break;
+            }
+
+            var secondaryShare = secondary.Weight / totalWeight;
+            if (secondaryShare < SecondaryShareMin)
+            {
+                continue;
+            }
+
+            if (!_taxonomy.TryGetL2(secondary.L2Id, out var l1, out var l2) ||
+                string.Equals(l2.Id, "g25c01", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            // L2 must belong to its L1.
+            if (!l2.Id.StartsWith(l1.Id, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            assignments.Add(new CategoryAssignment
+            {
+                L1 = new CategoryRef { Id = l1.Id, Name = l1.Name },
+                L2 = new CategoryRef { Id = l2.Id, Name = l2.Name },
+                Score = secondary.Weight,
+                Share = secondaryShare,
+                IsPrimary = false
+            });
         }
 
         return new ClassificationResult
@@ -96,18 +164,9 @@ public sealed class OkpdKtruMapper
             TaxonomyVersion = _taxonomy.Version,
             Method = top.Method,
             MappingVersion = Version,
-            Confidence = 0.95,
+            Confidence = share >= 0.85 ? 0.95 : 0.85,
             ReviewStatus = ReviewStatuses.None,
-            Categories =
-            [
-                new CategoryAssignment
-                {
-                    L1 = new CategoryRef { Id = l1.Id, Name = l1.Name },
-                    L2 = new CategoryRef { Id = l2.Id, Name = l2.Name },
-                    Score = 20,
-                    IsPrimary = true
-                }
-            ]
+            Categories = assignments
         };
     }
 
@@ -138,10 +197,15 @@ public sealed class OkpdKtruMapper
 
     private string? MatchPrefix(string code)
     {
-        foreach (var (prefix, l2Id) in _prefixes)
+        var digits = DigitsOnly(code);
+        if (digits.Length == 0)
         {
-            if (code.StartsWith(prefix.TrimEnd('.'), StringComparison.Ordinal) ||
-                code.StartsWith(prefix, StringComparison.Ordinal))
+            return null;
+        }
+
+        foreach (var (prefixDigits, l2Id) in _prefixes)
+        {
+            if (digits.StartsWith(prefixDigits, StringComparison.Ordinal))
             {
                 return l2Id;
             }
@@ -174,6 +238,7 @@ public sealed class OkpdKtruMapper
                     L1 = new CategoryRef { Id = l1.Id, Name = l1.Name },
                     L2 = new CategoryRef { Id = l2.Id, Name = l2.Name },
                     Score = 0,
+                    Share = 0,
                     IsPrimary = true
                 }
             ]
@@ -182,17 +247,14 @@ public sealed class OkpdKtruMapper
 
     private static double PositionWeight(PurchasePosition position, int index)
     {
+        var weight = position.Amount is > 0 ? position.Amount.Value : 1.0;
         if (position.IsPrimary)
         {
-            return 1_000_000;
+            weight *= 1.5;
         }
 
-        if (position.Amount is > 0)
-        {
-            return position.Amount.Value;
-        }
-
-        return 1_000 - index;
+        // Tiny index bias for stable ties.
+        return weight + (0.0001 * Math.Max(0, 1000 - index));
     }
 
     private static string NormalizeCode(string raw)
@@ -205,5 +267,20 @@ public sealed class OkpdKtruMapper
         }
 
         return value.Trim();
+    }
+
+    private static string DigitsOnly(string value)
+    {
+        Span<char> buffer = stackalloc char[value.Length];
+        var n = 0;
+        foreach (var ch in value)
+        {
+            if (char.IsDigit(ch))
+            {
+                buffer[n++] = ch;
+            }
+        }
+
+        return n == 0 ? string.Empty : new string(buffer[..n]);
     }
 }

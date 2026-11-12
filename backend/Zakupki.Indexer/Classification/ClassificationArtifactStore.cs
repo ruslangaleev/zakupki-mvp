@@ -32,6 +32,7 @@ public sealed class ClassificationArtifactStore
                 l2Id = c.L2.Id,
                 l2Name = c.L2.Name,
                 c.Score,
+                c.Share,
                 c.IsPrimary
             })
         };
@@ -78,5 +79,6 @@ public sealed class StoredCategoryAssignment
     public string? L2Id { get; set; }
     public string? L2Name { get; set; }
     public double Score { get; set; }
+    public double Share { get; set; }
     public bool IsPrimary { get; set; }
 }

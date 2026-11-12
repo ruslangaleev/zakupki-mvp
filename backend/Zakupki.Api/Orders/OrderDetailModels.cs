@@ -27,6 +27,7 @@ public sealed class OrderDetailResponse
     public string? TaxonomyVersion { get; init; }
     public string? ReviewStatus { get; init; }
     public string? MappingVersion { get; init; }
+    public IReadOnlyList<OrderCategoryAssignment> Categories { get; init; } = [];
     public IReadOnlyList<OrderPurchasePosition> Positions { get; init; } = [];
     public bool HasAdvance { get; init; }
     public double? AdvancePercent { get; init; }
@@ -48,6 +49,17 @@ public sealed class OrderDocumentItem
     public string? FileName { get; init; }
     public string? Title { get; init; }
     public string? DownloadUrl { get; init; }
+}
+
+public sealed class OrderCategoryAssignment
+{
+    public string? L1Id { get; init; }
+    public string? L1Name { get; init; }
+    public string? L2Id { get; init; }
+    public string? L2Name { get; init; }
+    public double Score { get; init; }
+    public double Share { get; init; }
+    public bool IsPrimary { get; init; }
 }
 
 public sealed class OrderPurchasePosition

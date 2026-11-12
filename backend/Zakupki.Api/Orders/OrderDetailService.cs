@@ -94,6 +94,18 @@ public sealed partial class OrderDetailService
             TaxonomyVersion = classification?.TaxonomyVersion,
             ReviewStatus = classification?.ReviewStatus,
             MappingVersion = classification?.MappingVersion,
+            Categories = (classification?.Categories ?? [])
+                .Select(c => new OrderCategoryAssignment
+                {
+                    L1Id = c.L1Id,
+                    L1Name = c.L1Name,
+                    L2Id = c.L2Id,
+                    L2Name = c.L2Name,
+                    Score = c.Score,
+                    Share = c.Share,
+                    IsPrimary = c.IsPrimary
+                })
+                .ToList(),
             Positions = (meta.Positions ?? [])
                 .Select(p => new OrderPurchasePosition
                 {
@@ -292,6 +304,8 @@ public sealed partial class OrderDetailService
         public string? L1Name { get; set; }
         public string? L2Id { get; set; }
         public string? L2Name { get; set; }
+        public double Score { get; set; }
+        public double Share { get; set; }
         public bool IsPrimary { get; set; }
     }
 
