@@ -25,10 +25,15 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
 
         var mappedL2 = mapped.Primary?.L2.Id;
 
-        // T05/T07/T08: text traps must override coarse OKPD hits (plastics/cables/cleaning).
+        // Text traps must override coarse OKPD hits (plastics/cables/cleaning/paper/fencing).
         if (TryTrapT05T07T08(hay, mapped.MappingVersion, mapped.Method) is { } trapHit)
         {
             return trapHit;
+        }
+
+        if (TryTrapT11T12(hay, mapped.MappingVersion, mapped.Method) is { } trapHit2)
+        {
+            return trapHit2;
         }
 
         if (ContainsAny(hay, "клеенк", "клеёнк") && ContainsAny(hay, "медицин"))
@@ -199,6 +204,11 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
             return earlyTrap;
         }
 
+        if (TryTrapT11T12(hay, mappingVersion: null, method: null) is { } earlyTrap2)
+        {
+            return earlyTrap2;
+        }
+
         // T01 — «прокат» inside Прокаин (also covered by MNN; keep as safety net).
         if (ContainsAny(hay, "прокаин"))
         {
@@ -309,19 +319,6 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
             return Hit("g22c03", 0.9);
         }
 
-        // T11 — fencing works at a power-plant site → fencing, not generators.
-        if (ContainsAny(hay, "огражден") && ContainsAny(hay, "электростанц"))
-        {
-            return Hit("g01c06", 0.9);
-        }
-
-        // T12 — paper hygiene household goods, not printing machinery.
-        if (ContainsAny(hay, "бумажно гигиеническ", "бумажногигиеническ") ||
-            (ContainsAny(hay, "хозяйственн товар") && ContainsAny(hay, "бумажн", "гигиеническ")))
-        {
-            return Hit("g15c08", 0.9);
-        }
-
         // Bedding / soft inventory (not clothing).
         if (ContainsAny(hay, "одеяло", "одеяла", "подушка", "подушки", "мягкий инвентар"))
         {
@@ -382,6 +379,24 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy)
             ContainsAny(hay, "снег", "налед", "наледи", "сосулек", "сосульк"))
         {
             return Hit("g22c02", 0.92, mappingVersion, method);
+        }
+
+        return null;
+    }
+
+    private ClassificationResult? TryTrapT11T12(string hay, string? mappingVersion, string? method)
+    {
+        // T11 — fencing works at a power-plant site → fencing, not HVAC/other construction.
+        if (ContainsAny(hay, "огражден") && ContainsAny(hay, "электростанц"))
+        {
+            return Hit("g01c06", 0.9, mappingVersion, method);
+        }
+
+        // T12 — paper hygiene household goods, not office paper (g15c02).
+        if (ContainsAny(hay, "бумажно гигиеническ", "бумажногигиеническ") ||
+            (ContainsAny(hay, "хозяйственн товар") && ContainsAny(hay, "бумажн", "гигиеническ")))
+        {
+            return Hit("g15c08", 0.9, mappingVersion, method);
         }
 
         return null;
