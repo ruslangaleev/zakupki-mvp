@@ -27,14 +27,18 @@ Thumbs.db
 # Docker
 *.pid
 
-# Collector data
+# Collector data (keep eval gold/metrics trackable)
 data/
+!data/eval/
+!data/eval/**
 
 # Local scratch / dumps
 tmp_*.json
 tmp_*.py
 tmp_*.txt
+tmp_*.md
 *.positions.tmp
 docs/tz/product/Downloads.zip
 docs/tz/product/audit3-*.json
 .cursor/
+tools/extract_gold150.py

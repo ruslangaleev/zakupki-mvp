@@ -65,6 +65,14 @@ dotnet run --project backend/Zakupki.Collector
 dotnet run --project backend/Zakupki.Indexer
 ```
 
+### Eval (метрики на gold150)
+
+```bash
+dotnet run --project backend/Zakupki.Categorization.Eval -- --gold data/eval/gold150.csv --orders data/orders --out eval/metrics.json
+```
+
+Пишет `eval/metrics.json` (`l1_acc`, `l2_acc`, `other_share`, `queued_share`, `skipped`, список ошибок).
+
 ### Frontend
 
 ```bash
