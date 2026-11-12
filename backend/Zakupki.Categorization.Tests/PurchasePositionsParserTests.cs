@@ -7,10 +7,9 @@ public class PurchasePositionsParserTests
     [Fact]
     public void Parses_okpd_from_eis_table_with_leading_empty_header()
     {
-        var htmlPath = Path.GetFullPath(Path.Combine(
+        var htmlPath = Path.Combine(
             AppContext.BaseDirectory,
-            "..", "..", "..", "..", "..",
-            "data", "orders", "0101300092326000004", "pages", "common-info.html"));
+            "Fixtures", "eis-positions-leading-empty-header.html");
         Assert.True(File.Exists(htmlPath), htmlPath);
 
         var html = File.ReadAllText(htmlPath);

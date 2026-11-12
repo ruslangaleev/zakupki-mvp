@@ -24,4 +24,8 @@
     <ProjectReference Include="..\Zakupki.Indexer\Zakupki.Indexer.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
