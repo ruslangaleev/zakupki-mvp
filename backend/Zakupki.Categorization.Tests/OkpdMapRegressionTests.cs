@@ -78,6 +78,48 @@ public class OkpdMapRegressionTests
         Assert.Equal(expectedL2, result.Primary?.L2.Id);
     }
 
+    /// <summary>#47: metrology / info-security OKPD prefix fixes.</summary>
+    [Theory]
+    [InlineData(
+        "0369200011326000823",
+        "Услуги по поверке и калибровке средств измерений - дозаторы",
+        "71.12.40.129",
+        "g12",
+        "g12c06")]
+    [InlineData(
+        "0351300051426000214",
+        "Оказание услуг по проведению метрологического обслуживания медицинской техники",
+        "71.12.40.129",
+        "g05",
+        "g05c03")]
+    [InlineData(
+        "0151100016326000032",
+        "услуги по проведению контроля функций средств защиты информации",
+        "74.90.20.144",
+        "g07",
+        "g07c03")]
+    public void Metrology_and_infosec_okpd_l1(
+        string reg,
+        string title,
+        string okpd,
+        string expectedL1,
+        string expectedL2)
+    {
+        var result = _classifier.Classify(new OrderClassificationInput
+        {
+            RegNumber = reg,
+            Title = title,
+            ObjectName = title,
+            Positions =
+            [
+                new PurchasePosition { Okpd2Code = okpd, Name = title, Amount = 100, IsPrimary = true }
+            ]
+        });
+
+        Assert.Equal(expectedL1, result.Primary?.L1.Id);
+        Assert.Equal(expectedL2, result.Primary?.L2.Id);
+    }
+
     /// <summary>#46: street works / MSW haul coded under coarse OKPD → title refine.</summary>
     [Theory]
     [InlineData(

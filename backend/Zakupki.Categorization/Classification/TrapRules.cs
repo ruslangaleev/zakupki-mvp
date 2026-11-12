@@ -53,6 +53,14 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy, OkpdKtruMapper mapper)
             return PromoteWithSecondary("g24c05", mapped);
         }
 
+        // #47: metrology OKPD 71.12.4 on medical equipment → medtech (keep g12 secondary).
+        if (HasOkpdPrefix(input, "71.12.4") &&
+            ContainsAny(hay, "медицин") &&
+            mapped.Primary?.L2?.Id is "g12c06" or "g04c01")
+        {
+            return PromoteWithSecondary("g05c03", mapped);
+        }
+
         // Text traps must override coarse OKPD hits (plastics/cables/cleaning/paper/fencing).
         if (TryTrapT05T07T08(hay, mapped.MappingVersion, mapped.Method) is { } trapHit)
         {

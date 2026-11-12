@@ -1,7 +1,7 @@
 {
   "gold150": {
-    "min_l1_pct": 91.3,
-    "min_l2_pct": 79.3,
-    "note": "Regression floor after #46 sidewalk/MSW title refine (+3 L1). Raise as independent gold1000 grows."
+    "min_l1_pct": 93.3,
+    "min_l2_pct": 81.3,
+    "note": "Regression floor after #47 metrology 71.12.4 / infosec 74.90.20.14. Raise as independent gold1000 grows."
   }
 }
