@@ -78,6 +78,72 @@ public class OkpdMapRegressionTests
         Assert.Equal(expectedL2, result.Primary?.L2.Id);
     }
 
+    /// <summary>#48: construction works with 42.* → g01; utility meters → g02.</summary>
+    [Fact]
+    public void Capital_repair_heat_network_42_to_g01()
+    {
+        var title = "Выполнение работ по объекту: \"Капитальный ремонт тепловой сети\"";
+        var result = _classifier.Classify(new OrderClassificationInput
+        {
+            RegNumber = "0136300000726000359",
+            Title = title,
+            ObjectName = title,
+            Positions =
+            [
+                new PurchasePosition { Okpd2Code = "42.21.21.000", Name = title, Amount = 100, IsPrimary = true }
+            ]
+        });
+
+        Assert.Equal("g01", result.Primary?.L1.Id);
+        Assert.Equal("g01c02", result.Primary?.L2.Id);
+    }
+
+    [Fact]
+    public void Sports_facility_works_multilabel_g01_with_code_secondaries()
+    {
+        var title = "Выполнение работ по устройству спортивных сооружений";
+        var result = _classifier.Classify(new OrderClassificationInput
+        {
+            RegNumber = "0119200000126020066",
+            Title = title,
+            ObjectName = title,
+            Positions =
+            [
+                new PurchasePosition { Okpd2Code = "42.99.22.110", Name = title, Amount = 100, IsPrimary = true },
+                new PurchasePosition { Okpd2Code = "27.40.39.113", Name = "светильник", Amount = 10 },
+                new PurchasePosition { Okpd2Code = "27.90.40.190", Name = "опора", Amount = 10 },
+                new PurchasePosition { Okpd2Code = "32.30.14.121", Name = "тренажер", Amount = 10 }
+            ]
+        });
+
+        Assert.Equal("g01", result.Primary?.L1.Id);
+        Assert.Equal("g01c01", result.Primary?.L2.Id);
+        var secondaryL1 = result.Categories.Where(c => !c.IsPrimary).Select(c => c.L1.Id).ToHashSet();
+        Assert.Contains("g02", secondaryL1);
+        Assert.Contains("g11", secondaryL1);
+        Assert.Contains("g21", secondaryL1);
+    }
+
+    [Fact]
+    public void Heat_meter_supply_to_g02_not_g12()
+    {
+        var title = "поставка приборов учета тепловой энергии";
+        var result = _classifier.Classify(new OrderClassificationInput
+        {
+            RegNumber = "0116300000226000214",
+            Title = title,
+            ObjectName = title,
+            Positions =
+            [
+                new PurchasePosition { Okpd2Code = "26.51.51.110", Name = "термометр", Amount = 100, IsPrimary = true }
+            ]
+        });
+
+        Assert.Equal("g02", result.Primary?.L1.Id);
+        Assert.Equal("g02c11", result.Primary?.L2.Id);
+        Assert.Contains(result.Categories, c => !c.IsPrimary && c.L1.Id == "g12");
+    }
+
     /// <summary>#47: metrology / info-security OKPD prefix fixes.</summary>
     [Theory]
     [InlineData(

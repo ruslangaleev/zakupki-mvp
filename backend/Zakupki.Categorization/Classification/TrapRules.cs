@@ -61,6 +61,22 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy, OkpdKtruMapper mapper)
             return PromoteWithSecondary("g05c03", mapped);
         }
 
+        // #48: construction/repair wording + OKPD 42/43 → g01 (after #46 sidewalk refine).
+        if (TryConstructionWorks(input, mapped, hay) is { } construction)
+        {
+            return construction;
+        }
+
+        // #48: utility meters sold as measuring instruments → engineering networks g02.
+        if (ContainsAny(hay, "поставка") &&
+            ContainsAny(hay, "прибор") &&
+            ContainsAny(hay, "учет", "учёт") &&
+            ContainsAny(hay, "тепл", "вод", "газ", "электр") &&
+            mapped.Primary?.L1.Id is "g12")
+        {
+            return PromoteWithSecondary("g02c11", mapped);
+        }
+
         // Text traps must override coarse OKPD hits (plastics/cables/cleaning/paper/fencing).
         if (TryTrapT05T07T08(hay, mapped.MappingVersion, mapped.Method) is { } trapHit)
         {
@@ -626,6 +642,82 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy, OkpdKtruMapper mapper)
                     IsPrimary = true
                 }
             ]
+        };
+    }
+
+    private ClassificationResult? TryConstructionWorks(
+        OrderClassificationInput input,
+        ClassificationResult mapped,
+        string hay)
+    {
+        if (!HasOkpdPrefix(input, "42") && !HasOkpdPrefix(input, "43"))
+        {
+            return null;
+        }
+
+        var capitalRepair = ContainsAny(hay, "капитальн") && ContainsAny(hay, "ремонт");
+        var constructionCue = capitalRepair ||
+                              ContainsAny(hay, "строительств", "реконструкц", "устройств", "сооружен");
+        if (!constructionCue && !ContainsAny(hay, "выполнение работ"))
+        {
+            return null;
+        }
+
+        // Need a strong construction cue so winter road maintenance stays on g02 (#46 control).
+        if (!constructionCue)
+        {
+            return null;
+        }
+
+        // T11: fencing works at a power-plant site stay g01c06, not generic construction.
+        var primaryL2 = ContainsAny(hay, "огражден") && ContainsAny(hay, "электростанц")
+            ? "g01c06"
+            : capitalRepair ? "g01c02" : "g01c01";
+        if (!taxonomy.TryGetL2(primaryL2, out var l1, out var l2))
+        {
+            throw new InvalidOperationException($"taxonomy missing {primaryL2}");
+        }
+
+        var categories = new List<CategoryAssignment>
+        {
+            new()
+            {
+                L1 = new CategoryRef { Id = l1.Id, Name = l1.Name },
+                L2 = new CategoryRef { Id = l2.Id, Name = l2.Name },
+                Score = 19,
+                Share = 1,
+                IsPrimary = true
+            }
+        };
+
+        var seenL1 = new HashSet<string>(StringComparer.Ordinal) { l1.Id };
+        foreach (var mappedL2Id in mapper.DistinctMappedL2Ids(input.Positions))
+        {
+            if (string.Equals(mappedL2Id, primaryL2, StringComparison.Ordinal) ||
+                !taxonomy.TryGetL2(mappedL2Id, out var secL1, out var secL2) ||
+                !seenL1.Add(secL1.Id))
+            {
+                continue;
+            }
+
+            categories.Add(new CategoryAssignment
+            {
+                L1 = new CategoryRef { Id = secL1.Id, Name = secL1.Name },
+                L2 = new CategoryRef { Id = secL2.Id, Name = secL2.Name },
+                Score = 10,
+                Share = 0,
+                IsPrimary = false
+            });
+        }
+
+        return new ClassificationResult
+        {
+            TaxonomyVersion = taxonomy.Version,
+            Method = mapped.Method,
+            MappingVersion = mapped.MappingVersion,
+            Confidence = 0.93,
+            ReviewStatus = ReviewStatuses.None,
+            Categories = categories
         };
     }
 
