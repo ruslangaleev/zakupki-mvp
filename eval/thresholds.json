@@ -1,7 +1,7 @@
 {
   "gold150": {
-    "min_l1_pct": 89.3,
-    "min_l2_pct": 77.3,
-    "note": "Regression floor after #43 dressing OKPD 21.20.24 → g05c02. Raise as independent gold1000 grows."
+    "min_l1_pct": 91.3,
+    "min_l2_pct": 79.3,
+    "note": "Regression floor after #46 sidewalk/MSW title refine (+3 L1). Raise as independent gold1000 grows."
   }
 }

@@ -78,6 +78,74 @@ public class OkpdMapRegressionTests
         Assert.Equal(expectedL2, result.Primary?.L2.Id);
     }
 
+    /// <summary>#46: street works / MSW haul coded under coarse OKPD → title refine.</summary>
+    [Theory]
+    [InlineData(
+        "0134300054826000044",
+        "Выполнение работ по устройству тротуара по ул. 40 лет Победы п. Утулик",
+        "42.11.20.300",
+        "g22",
+        "g22c02")]
+    [InlineData(
+        "0351300062426000121",
+        "Оказание услуг по уборке улично-дорожной сети и озелененных территорий",
+        "42.11.20.300",
+        "g22",
+        "g22c02")]
+    [InlineData(
+        "0520600005126000038",
+        "Оказание услуг по транспортированию твердых коммунальных отходов",
+        "49.41.19.900",
+        "g24",
+        "g24c05")]
+    public void Title_refine_roadworks_and_waste_haul(
+        string reg,
+        string title,
+        string okpd,
+        string expectedL1,
+        string expectedL2)
+    {
+        var result = _classifier.Classify(new OrderClassificationInput
+        {
+            RegNumber = reg,
+            Title = title,
+            ObjectName = title,
+            Positions =
+            [
+                new PurchasePosition { Okpd2Code = okpd, Name = title, Amount = 100, IsPrimary = true }
+            ]
+        });
+
+        Assert.Equal(expectedL1, result.Primary?.L1.Id);
+        Assert.Equal(expectedL2, result.Primary?.L2.Id);
+        Assert.Contains(result.Categories, c => !c.IsPrimary && c.L1 is not null);
+    }
+
+    [Fact]
+    public void Winter_road_maintenance_42_11_20_stays_g02()
+    {
+        var title = "Выполнение работ по зимнему содержанию автомобильных дорог";
+        var result = _classifier.Classify(new OrderClassificationInput
+        {
+            RegNumber = "0119600018326000130",
+            Title = title,
+            ObjectName = title,
+            Positions =
+            [
+                new PurchasePosition
+                {
+                    Okpd2Code = "42.11.20.300",
+                    Name = "Содержание дорог. Уборка снежных валов автогрейдерами",
+                    Amount = 100,
+                    IsPrimary = true
+                }
+            ]
+        });
+
+        Assert.Equal("g02", result.Primary?.L1.Id);
+        Assert.DoesNotContain(result.Categories, c => c.L2?.Id == "g22c02" && c.IsPrimary);
+    }
+
     /// <summary>#43: cotton/dressings 21.20.24 must not outweigh med devices into drugs.</summary>
     [Fact]
     public void Med_devices_with_dressings_primary_g05c02()

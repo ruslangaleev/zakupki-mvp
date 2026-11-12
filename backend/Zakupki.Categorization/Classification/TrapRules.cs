@@ -36,6 +36,23 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy, OkpdKtruMapper mapper)
             return foodAssortment;
         }
 
+        // #46: roadworks OKPD 42.11.20 used for sidewalks / street cleaning → g22.
+        // Avoid winter road maintenance («уборка снега» / автогрейдер).
+        if (HasOkpdPrefix(input, "42.11.20") &&
+            !ContainsAny(hay, "автогрейд", "автомобильн дорог", "содержание дорог") &&
+            (ContainsAny(hay, "тротуар", "озеленен", "озеленён", "благоустр") ||
+             (ContainsAny(hay, "уборк") && ContainsAny(hay, "улично", "территор", "озелен"))))
+        {
+            return PromoteWithSecondary("g22c02", mapped);
+        }
+
+        // #46: freight OKPD 49.41 used for MSW haulage → g24.
+        if (HasOkpdPrefix(input, "49.41") &&
+            ContainsAny(hay, "отход", "тко", "мусор"))
+        {
+            return PromoteWithSecondary("g24c05", mapped);
+        }
+
         // Text traps must override coarse OKPD hits (plastics/cables/cleaning/paper/fencing).
         if (TryTrapT05T07T08(hay, mapped.MappingVersion, mapped.Method) is { } trapHit)
         {
@@ -601,6 +618,37 @@ public sealed class TrapRules(ITaxonomyCatalog taxonomy, OkpdKtruMapper mapper)
                     IsPrimary = true
                 }
             ]
+        };
+    }
+
+    /// <summary>Promote a more specific L2; keep mapped primary L1/L2 as secondary when different.</summary>
+    private ClassificationResult PromoteWithSecondary(string l2Id, ClassificationResult mapped)
+    {
+        var result = Hit(l2Id, 0.93, mapped.MappingVersion, mapped.Method);
+        var mappedPrimary = mapped.Primary;
+        if (mappedPrimary?.L2 is null ||
+            string.Equals(mappedPrimary.L2.Id, l2Id, StringComparison.Ordinal))
+        {
+            return result;
+        }
+
+        var categories = result.Categories.ToList();
+        categories.Add(new CategoryAssignment
+        {
+            L1 = mappedPrimary.L1,
+            L2 = mappedPrimary.L2,
+            Score = 10,
+            Share = 0,
+            IsPrimary = false
+        });
+        return new ClassificationResult
+        {
+            TaxonomyVersion = result.TaxonomyVersion,
+            Method = result.Method,
+            MappingVersion = result.MappingVersion,
+            Confidence = result.Confidence,
+            ReviewStatus = result.ReviewStatus,
+            Categories = categories
         };
     }
 
