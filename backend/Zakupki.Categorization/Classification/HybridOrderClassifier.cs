@@ -58,7 +58,7 @@ public sealed class HybridOrderClassifier(
                 var (l1Id, confidence) = hit.Value;
                 if (confidence >= classificationOptions.Value.AutoThreshold)
                 {
-                    var built = BuildFromL1(l1Id, confidence, ClassificationMethods.MlL1);
+                    var built = BuildFromMlL1(input, l1Id, confidence);
                     if (built is not null)
                     {
                         return built;
@@ -91,29 +91,62 @@ public sealed class HybridOrderClassifier(
         result.ReviewStatus == ReviewStatuses.Queued ||
         string.Equals(result.Primary?.L2.Id, RuleBasedOrderClassifier.UnclassifiedL2Id, StringComparison.Ordinal);
 
-    private ClassificationResult? BuildFromL1(string l1Id, float confidence, string method)
+    /// <summary>
+    /// ML predicts L1 only; pick L2 via rules-v2 inside that L1, else queue.
+    /// </summary>
+    private ClassificationResult? BuildFromMlL1(OrderClassificationInput input, string l1Id, float confidence)
     {
         var l1 = taxonomy.Roots.FirstOrDefault(r => string.Equals(r.Id, l1Id, StringComparison.Ordinal));
-        var l2 = l1?.Children.FirstOrDefault();
-        if (l1 is null || l2 is null)
+        if (l1 is null)
         {
             return null;
+        }
+
+        var rulesResult = rules.Classify(input);
+        var rulesL2 = rulesResult.Primary?.L2;
+        if (rulesL2 is not null &&
+            !string.Equals(rulesL2.Id, RuleBasedOrderClassifier.UnclassifiedL2Id, StringComparison.Ordinal) &&
+            string.Equals(rulesResult.Primary!.L1.Id, l1Id, StringComparison.Ordinal))
+        {
+            return new ClassificationResult
+            {
+                TaxonomyVersion = taxonomy.Version,
+                Method = ClassificationMethods.MlL1,
+                Confidence = confidence,
+                ReviewStatus = ReviewStatuses.None,
+                Categories =
+                [
+                    new CategoryAssignment
+                    {
+                        L1 = new CategoryRef { Id = l1.Id, Name = l1.Name },
+                        L2 = new CategoryRef { Id = rulesL2.Id, Name = rulesL2.Name },
+                        Score = confidence,
+                        Share = 1,
+                        IsPrimary = true
+                    }
+                ]
+            };
+        }
+
+        // No in-L1 L2 from rules → queue (do not invent first child).
+        if (!taxonomy.TryGetL2(RuleBasedOrderClassifier.UnclassifiedL2Id, out var qL1, out var qL2))
+        {
+            throw new InvalidOperationException("taxonomy must contain unclassified L2");
         }
 
         return new ClassificationResult
         {
             TaxonomyVersion = taxonomy.Version,
-            Method = method,
+            Method = ClassificationMethods.MlL1,
             Confidence = confidence,
-            ReviewStatus = ReviewStatuses.None,
+            ReviewStatus = ReviewStatuses.Queued,
             Categories =
             [
                 new CategoryAssignment
                 {
-                    L1 = new CategoryRef { Id = l1.Id, Name = l1.Name },
-                    L2 = new CategoryRef { Id = l2.Id, Name = l2.Name },
-                    Score = confidence,
-                    Share = 1,
+                    L1 = new CategoryRef { Id = qL1.Id, Name = qL1.Name },
+                    L2 = new CategoryRef { Id = qL2.Id, Name = qL2.Name },
+                    Score = 0,
                     IsPrimary = true
                 }
             ]

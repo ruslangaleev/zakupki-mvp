@@ -42,12 +42,20 @@ static async Task<int> RunAsync(string[] args)
     var mapperVersion = sp.GetRequiredService<Zakupki.Categorization.Mapping.OkpdKtruMapper>().Version;
     Console.WriteLine($"eval flags: stripCodes={stripCodes} enableMl={enableMl}");
 
+    Console.WriteLine(
+        "WARNING: gold150 labels mostly come from rules-v2 (sample-as-is, seed=7, 11.11); " +
+        "only ~16 rows are independent (source=xlsx-fix). Text-only / --strip-codes accuracy is inflated. " +
+        "Use gold150 as regression floor; independent gold1000 is #17.");
+
     var evaluated = 0;
     var skipped = 0;
     var l1Hits = 0;
     var l2Hits = 0;
     var other = 0;
     var queued = 0;
+    var fixEval = 0;
+    var fixL1Hits = 0;
+    var fixL2Hits = 0;
     var errors = new List<object>();
     var skipReasons = new Dictionary<string, int>(StringComparer.Ordinal);
 
@@ -138,6 +146,21 @@ static async Task<int> RunAsync(string[] args)
             l2Hits++;
         }
 
+        var isFix = string.Equals(row.Source, "xlsx-fix", StringComparison.OrdinalIgnoreCase);
+        if (isFix)
+        {
+            fixEval++;
+            if (l1Ok)
+            {
+                fixL1Hits++;
+            }
+
+            if (l2Ok)
+            {
+                fixL2Hits++;
+            }
+        }
+
         if (!l1Ok || !l2Ok)
         {
             errors.Add(new
@@ -150,6 +173,7 @@ static async Task<int> RunAsync(string[] args)
                 method = result.Method,
                 reviewStatus = result.ReviewStatus,
                 confidence = result.Confidence,
+                source = row.Source,
                 title = row.Title
             });
         }
@@ -163,6 +187,8 @@ static async Task<int> RunAsync(string[] args)
         ordersPath,
         stripCodes,
         enableMl,
+        goldLeakageWarning =
+            "Most gold150 labels are rules-v2 sample-as-is (seed=7); xlsx-fix is the small independent slice.",
         goldTotal = rows.Count,
         evaluated,
         skipped,
@@ -171,6 +197,9 @@ static async Task<int> RunAsync(string[] args)
         l2_acc = evaluated == 0 ? 0 : Math.Round((double)l2Hits / evaluated, 4),
         l1_hits = l1Hits,
         l2_hits = l2Hits,
+        xlsx_fix_evaluated = fixEval,
+        xlsx_fix_l1_acc = fixEval == 0 ? 0 : Math.Round((double)fixL1Hits / fixEval, 4),
+        xlsx_fix_l2_acc = fixEval == 0 ? 0 : Math.Round((double)fixL2Hits / fixEval, 4),
         other_share = evaluated == 0 ? 0 : Math.Round((double)other / evaluated, 4),
         queued_share = evaluated == 0 ? 0 : Math.Round((double)queued / evaluated, 4),
         other_count = other,
@@ -189,6 +218,10 @@ static async Task<int> RunAsync(string[] args)
         $"l2_acc={metrics.l2_acc:P1} ({l2Hits}/{evaluated}) " +
         $"other={metrics.other_share:P1} queued={metrics.queued_share:P1} " +
         $"mapping={mapperVersion}");
+    Console.WriteLine(
+        $"xlsx-fix: evaluated={fixEval} " +
+        $"l1_acc={metrics.xlsx_fix_l1_acc:P1} ({fixL1Hits}/{fixEval}) " +
+        $"l2_acc={metrics.xlsx_fix_l2_acc:P1} ({fixL2Hits}/{fixEval})");
     Console.WriteLine($"Wrote {outPath}");
     return 0;
 
