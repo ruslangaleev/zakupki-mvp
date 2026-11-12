@@ -78,7 +78,7 @@
 | `AC-CAT-OKPD-03` | `GET /api/orders/{regNumber}` отдаёт плоские `okpd2[]` и `ktru[]` (уникальные коды из positions). | `done` |
 | `AC-CAT-REVIEW-01` | `GET /api/review/queue` и `GET /api/review/queue/{regNumber}` отдают очередь `reviewStatus=queued`. | `done` |
 | `AC-CAT-REVIEW-02` | `POST /api/review/queue/{regNumber}` с заголовком `X-Review-Key` пишет `manual` + `reviewStatus=resolved`, обновляет индекс и `data/manual-review.jsonl`. | `done` |
-| `AC-CAT-ML-01` | ML.NET L1/L2 (`SdcaMaximumEntropy`) + PredictionEnginePool, порог `Classification:AutoThreshold=0.65`. | `planned` |
+| `AC-CAT-ML-01` | ML.NET L1 (`SdcaMaximumEntropy`) + PredictionEnginePool для закупок без кода, порог `Classification:AutoThreshold=0.65`; L2-модель — следующий инкремент. | `done` |
 | `AC-CAT-GOLD-01` | Эталон ≥1000 и CI-метрики L1/L2 / Прочее / авто / T01–T15. | `planned` |
 | `AC-CAT-MNN-01` | Словарь МНН (`inn-dict`) относит названия-МНН без слова «препарат» в `g05c01`. | `done` |
 | `AC-CAT-TRAP-01` | Регрессия ловушек T01–T15 из product TZ зелёная (unit-тесты `Zakupki.Categorization.Tests`). | `done` |

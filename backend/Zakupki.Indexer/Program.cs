@@ -32,7 +32,7 @@ builder.Services.AddHttpClient<OpenSearchIndexClient>((sp, client) =>
     client.Timeout = TimeSpan.FromMinutes(2);
 });
 
-builder.Services.AddZakupkiCategorization();
+builder.Services.AddZakupkiCategorization(builder.Configuration);
 builder.Services.AddSingleton<ClassificationArtifactStore>();
 builder.Services.AddSingleton<AdvanceArtifactStore>();
 builder.Services.AddSingleton<DocumentTextExtractor>();

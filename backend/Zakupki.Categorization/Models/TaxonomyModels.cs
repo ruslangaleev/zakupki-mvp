@@ -67,6 +67,7 @@ public static class ClassificationMethods
     public const string KtruMap = "ktru-map";
     public const string RulesV2 = "rules-v2";
     public const string InnDict = "inn-dict";
+    public const string MlL1 = "ml-l1";
     public const string Llm = "llm";
     public const string Manual = "manual";
 }
