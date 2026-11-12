@@ -1,6 +1,10 @@
 # gold150
 
-Regression set for categorization (`data/eval/gold150.csv`).
+Regression set for categorization. Tracked fixture (CI / exclude for gold1000):
+
+`backend/Zakupki.Categorization.Eval/testdata/gold150/gold150.csv`
+
+Local collector dump may also have `data/eval/gold150.csv` (gitignored); `--sample-part01` defaults to the tracked fixture.
 
 ## Provenance (important)
 

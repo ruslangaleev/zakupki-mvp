@@ -16,9 +16,13 @@ internal static class SamplePart01
         NumberHandling = JsonNumberHandling.AllowReadingFromString
     };
 
+    /// <summary>Tracked gold150 fixture from #34 — source of truth for exclude/overlap.</summary>
+    public const string DefaultGoldFixture =
+        "backend/Zakupki.Categorization.Eval/testdata/gold150/gold150.csv";
+
     public static int Run(string[] args)
     {
-        var goldPath = Path.GetFullPath(Arg(args, "--gold", "data/eval/gold150.csv"));
+        var goldPath = Path.GetFullPath(Arg(args, "--gold", DefaultGoldFixture));
         var ordersPath = Path.GetFullPath(Arg(args, "--orders", "data/orders"));
         var outPath = Path.GetFullPath(Arg(args, "--out", "data/eval/gold1000_part01_sample.csv"));
         var seed = int.Parse(Arg(args, "--seed", "1"));
@@ -37,7 +41,7 @@ internal static class SamplePart01
         }
 
         var exclude = LoadGoldRegNumbers(goldPath);
-        Console.WriteLine($"Exclude gold150: {exclude.Count} regNumbers");
+        Console.WriteLine($"Exclude gold150: {exclude.Count} regNumbers (from {goldPath})");
 
         var candidates = new List<string>();
         foreach (var dir in Directory.EnumerateDirectories(ordersPath))
@@ -72,6 +76,13 @@ internal static class SamplePart01
         }
 
         var picked = candidates.Take(count).OrderBy(x => x, StringComparer.Ordinal).ToList();
+        var overlap = CountOverlap(picked, exclude);
+        Console.WriteLine($"overlap_with_gold150={overlap}");
+        if (overlap > 0)
+        {
+            Console.Error.WriteLine($"Sample intersects gold150 ({overlap} regs); refusing to write.");
+            return 2;
+        }
 
         Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
         var sb = new StringBuilder();
@@ -105,7 +116,10 @@ internal static class SamplePart01
         return 0;
     }
 
-    private static HashSet<string> LoadGoldRegNumbers(string path)
+    public static int CountOverlap(IEnumerable<string> regs, ISet<string> gold) =>
+        regs.Count(r => gold.Contains(r));
+
+    public static HashSet<string> LoadGoldRegNumbers(string path)
     {
         var set = new HashSet<string>(StringComparer.Ordinal);
         foreach (var line in File.ReadLines(path, Encoding.UTF8).Skip(1))
